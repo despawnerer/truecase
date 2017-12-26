@@ -1,0 +1,12 @@
+[package]
+authors = ["Aleksei Voronov <despawn@gmail.com>"]
+name = "truecase"
+version = "0.1.0"
+
+[dependencies]
+failure = "0.1.1"
+itertools = "0.7.4"
+regex = "0.2.3"
+serde = "1.0.25"
+serde_derive = "1.0.25"
+serde_json = "1.0.8"
