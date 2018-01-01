@@ -40,7 +40,7 @@ impl Model {
 
         for sentence in text.lines().filter(|s| is_sentence_sane(s)) {
             let mut tokens = tokenize(sentence);
-            tokens.retain(|t| t.is_meaningful);
+            tokens.retain(Token::is_meaningful);
 
             for token in tokens.iter().cloned() {
                 unigram_stats.add_token(token);
@@ -61,7 +61,7 @@ impl Model {
         let tokens = tokenize(sentence);
         let total_tokens = tokens.len();
 
-        let words_with_indexes: Vec<_> = tokens.iter().enumerate().filter(|x| x.1.is_meaningful).collect();
+        let words_with_indexes: Vec<_> = tokens.iter().enumerate().filter(|x| x.1.is_meaningful()).collect();
 
         let mut truecase_tokens: Vec<Option<String>> = Vec::with_capacity(total_tokens);
         truecase_tokens.resize(total_tokens, None);
@@ -69,8 +69,8 @@ impl Model {
         let select_true_case_from_ngrams = |size, source: &CaseMap, result: &mut Vec<Option<String>>| {
             for slice in words_with_indexes.windows(size) {
                 let indexes = slice.iter().map(|x| x.0);
-                let ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
-                if let Some(truecased_ngram) = source.get(&ngram) {
+                let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
+                if let Some(truecased_ngram) = source.get(&normalized_ngram) {
                     for (word, index) in truecased_ngram.split(" ").zip(indexes) {
                         result[index].get_or_insert_with(|| word.to_owned());
                     }
@@ -82,7 +82,7 @@ impl Model {
         select_true_case_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
 
         for (truecase, token) in truecase_tokens.iter_mut().zip(tokens.iter()) {
-            if token.is_meaningful && truecase.is_none() {
+            if token.is_meaningful() && truecase.is_none() {
                 *truecase = self.unigrams.get(&token.normalized).map(String::clone);
             }
 
@@ -126,7 +126,7 @@ impl CaseStats {
             self.add_token(Token {
                 original,
                 normalized,
-                is_meaningful: true
+                kind: TokenKind::Ngram,
             });
         }
     }
@@ -149,21 +149,39 @@ type CaseMap = HashMap<String, String>;
 type Tokens = Vec<Token>;
 
 #[derive(Debug, Clone)]
+enum TokenKind {
+    Word,
+    Ngram,
+    PunctuationOrWhitespace,
+}
+
+#[derive(Debug, Clone)]
 struct Token {
     pub original: String,
     pub normalized: String,
-    pub is_meaningful: bool,
+    pub kind: TokenKind,
 }
 
 impl Token {
-    fn new(original: &str, is_meaningful: bool) -> Self {
-        let original = original.to_owned();
+    fn new(string: &str, kind: TokenKind) -> Self {
+        let original = string.to_owned();
         let normalized = normalize(&original);
         Self {
             original,
             normalized,
-            is_meaningful,
+            kind,
         }
+    }
+
+    fn is_meaningful(&self) -> bool {
+        match self.kind {
+            TokenKind::PunctuationOrWhitespace => false,
+            _ => true
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.original.is_empty()
     }
 }
 
@@ -177,13 +195,13 @@ fn tokenize(sentence: &str) -> Tokens {
     let mut string = sentence;
     while let Some(mat) = WORD_SEPARATORS.find(string) {
         let (before, matching_part, rest) = split_in_three(string, mat.start(), mat.end());
-        tokens.push(Token::new(before, true));
-        tokens.push(Token::new(matching_part, false));
+        tokens.push(Token::new(before, TokenKind::Word));
+        tokens.push(Token::new(matching_part, TokenKind::PunctuationOrWhitespace));
         string = rest;
     }
 
-    tokens.push(Token::new(string, true));
-    tokens.retain(|token| !token.original.is_empty());
+    tokens.push(Token::new(string, TokenKind::Word));
+    tokens.retain(|token| !token.is_empty());
 
     tokens
 }
