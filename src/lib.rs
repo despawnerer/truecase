@@ -1,11 +1,11 @@
 extern crate failure;
 extern crate itertools;
-extern crate regex;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
 #[macro_use]
 extern crate lazy_static;
+extern crate regex;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -61,22 +61,27 @@ impl Model {
         let tokens = tokenize(sentence);
         let total_tokens = tokens.len();
 
-        let words_with_indexes: Vec<_> = tokens.iter().enumerate().filter(|x| x.1.is_meaningful()).collect();
+        let words_with_indexes: Vec<_> = tokens
+            .iter()
+            .enumerate()
+            .filter(|x| x.1.is_meaningful())
+            .collect();
 
         let mut truecase_tokens: Vec<Option<String>> = Vec::with_capacity(total_tokens);
         truecase_tokens.resize(total_tokens, None);
 
-        let select_true_case_from_ngrams = |size, source: &CaseMap, result: &mut Vec<Option<String>>| {
-            for slice in words_with_indexes.windows(size) {
-                let indexes = slice.iter().map(|x| x.0);
-                let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
-                if let Some(truecased_ngram) = source.get(&normalized_ngram) {
-                    for (word, index) in truecased_ngram.split(" ").zip(indexes) {
-                        result[index].get_or_insert_with(|| word.to_owned());
+        let select_true_case_from_ngrams =
+            |size, source: &CaseMap, result: &mut Vec<Option<String>>| {
+                for slice in words_with_indexes.windows(size) {
+                    let indexes = slice.iter().map(|x| x.0);
+                    let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
+                    if let Some(truecased_ngram) = source.get(&normalized_ngram) {
+                        for (word, index) in truecased_ngram.split(" ").zip(indexes) {
+                            result[index].get_or_insert_with(|| word.to_owned());
+                        }
                     }
                 }
-            }
-        };
+            };
 
         select_true_case_from_ngrams(3, &self.trigrams, &mut truecase_tokens);
         select_true_case_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
@@ -94,7 +99,6 @@ impl Model {
         truecase_tokens.into_iter().map(Option::unwrap).join("")
     }
 }
-
 
 type FreqDist = HashMap<String, u32>;
 
@@ -176,7 +180,7 @@ impl Token {
     fn is_meaningful(&self) -> bool {
         match self.kind {
             TokenKind::PunctuationOrWhitespace => false,
-            _ => true
+            _ => true,
         }
     }
 
@@ -196,7 +200,10 @@ fn tokenize(sentence: &str) -> Tokens {
     while let Some(mat) = WORD_SEPARATORS.find(string) {
         let (before, matching_part, rest) = split_in_three(string, mat.start(), mat.end());
         tokens.push(Token::new(before, TokenKind::Word));
-        tokens.push(Token::new(matching_part, TokenKind::PunctuationOrWhitespace));
+        tokens.push(Token::new(
+            matching_part,
+            TokenKind::PunctuationOrWhitespace,
+        ));
         string = rest;
     }
 
