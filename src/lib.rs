@@ -10,6 +10,7 @@ extern crate serde_derive;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::iter::{Chain, Take, Repeat, repeat};
 
 use failure::Error;
 use itertools::Itertools;
@@ -39,15 +40,19 @@ impl Model {
         let mut trigram_stats = CaseStats::new();
 
         for sentence in text.lines().filter(|s| is_sentence_sane(s)) {
-            let mut tokens = tokenize(sentence);
-            tokens.retain(Token::is_meaningful);
+            let tokens: Vec<_> = tokenize(sentence).pad(1, Token::padding()).filter(Token::is_meaningful).collect();
 
             for token in tokens.iter().cloned() {
-                unigram_stats.add_token(token);
+                unigram_stats.add(token);
             }
 
-            bigram_stats.add_ngrams(&tokens, 2);
-            trigram_stats.add_ngrams(&tokens, 3);
+            for ngram in tokens.windows(2).map(Token::ngram) {
+                bigram_stats.add(ngram);
+            }
+
+            for ngram in tokens.windows(3).map(Token::ngram) {
+                trigram_stats.add(ngram);
+            }
         }
 
         Ok(Model {
@@ -58,7 +63,7 @@ impl Model {
     }
 
     pub fn truecase(&self, sentence: &str) -> String {
-        let tokens = tokenize(sentence);
+        let tokens: Vec<_> = tokenize(sentence).pad(1, Token::padding()).collect();
         let total_tokens = tokens.len();
 
         let words_with_indexes: Vec<_> = tokens
@@ -100,12 +105,11 @@ impl Model {
     }
 }
 
-type FreqDist = HashMap<String, u32>;
 
 /// `CaseStats` keeps track of how often we see each casing for different tokens
 #[derive(Default)]
 struct CaseStats {
-    stats: HashMap<String, FreqDist>,
+    stats: HashMap<String, HashMap<String, u32>>,
 }
 
 impl CaseStats {
@@ -113,50 +117,38 @@ impl CaseStats {
         Self::default()
     }
 
-    fn add_token(&mut self, token: Token) {
+    fn add(&mut self, token: Token) {
         let count = self.stats
             .entry(token.normalized)
-            .or_insert_with(FreqDist::new)
+            .or_insert_with(HashMap::new)
             .entry(token.original)
             .or_insert(0);
 
         *count += 1;
     }
 
-    fn add_ngrams(&mut self, tokens: &[Token], size: usize) {
-        for ngram in tokens.windows(size) {
-            let original = ngram.iter().map(|t| &t.original).join(" ");
-            let normalized = ngram.iter().map(|t| &t.normalized).join(" ");
-            self.add_token(Token {
-                original,
-                normalized,
-                kind: TokenKind::Ngram,
-            });
-        }
-    }
-
     fn into_most_common(self, min_frequency: u32) -> CaseMap {
         self.stats
             .into_iter()
-            .flat_map(|(token, possible_cases)| {
+            .flat_map(|(normalized, possible_cases)| {
                 possible_cases
                     .into_iter()
                     .filter(|&(_, frequency)| frequency >= min_frequency)
                     .max_by_key(|&(_, frequency)| frequency)
-                    .map(|(most_common_case, _)| (token, most_common_case))
+                    .map(|(most_common_case, _)| (normalized, most_common_case))
             })
             .collect()
     }
 }
 
 type CaseMap = HashMap<String, String>;
-type Tokens = Vec<Token>;
 
 #[derive(Debug, Clone)]
 enum TokenKind {
     Word,
     Ngram,
-    PunctuationOrWhitespace,
+    Separator,
+    Padding,
 }
 
 #[derive(Debug, Clone)]
@@ -177,9 +169,31 @@ impl Token {
         }
     }
 
+    fn padding() -> Self {
+        Self::new("", TokenKind::Padding)
+    }
+
+    fn word(string: &str) -> Self {
+        Self::new(string, TokenKind::Word)
+    }
+
+    fn ngram(tokens: &[Token]) -> Self {
+        let original = tokens.iter().map(|t| &t.original).join(" ");
+        let normalized = tokens.iter().map(|t| &t.normalized).join(" ");
+        Self {
+            original,
+            normalized,
+            kind: TokenKind::Ngram,
+        }
+    }
+
+    fn separator(string: &str) -> Self {
+        Self::new(string, TokenKind::Separator)
+    }
+
     fn is_meaningful(&self) -> bool {
         match self.kind {
-            TokenKind::PunctuationOrWhitespace => false,
+            TokenKind::Separator => false,
             _ => true,
         }
     }
@@ -189,28 +203,47 @@ impl Token {
     }
 }
 
-fn is_sentence_sane(sentence: &str) -> bool {
-    !sentence.chars().all(char::is_uppercase)
+struct Tokens<'a> {
+    next_token: Option<Token>,
+    string: Option<&'a str>,
+}
+
+impl<'a> Iterator for Tokens<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        if let Some(string) = self.next_token.take() {
+            if !string.is_empty() {
+                return Some(string);
+            }
+        }
+
+        if let Some(string) = self.string.take() {
+            if let Some(mat) = WORD_SEPARATORS.find(string) {
+                let (before, matching_part, rest) = split_in_three(string, mat.start(), mat.end());
+                self.string = Some(rest);
+
+                let separator = Token::separator(matching_part);
+                if before.is_empty() {
+                    return Some(separator);
+                } else {
+                    self.next_token = Some(separator);
+                    return Some(Token::word(before));
+                }
+            } else if !string.is_empty() {
+                return Some(Token::word(string));
+            }
+        }
+
+        return None;
+    }
 }
 
 fn tokenize(sentence: &str) -> Tokens {
-    let mut tokens = Vec::new();
-
-    let mut string = sentence;
-    while let Some(mat) = WORD_SEPARATORS.find(string) {
-        let (before, matching_part, rest) = split_in_three(string, mat.start(), mat.end());
-        tokens.push(Token::new(before, TokenKind::Word));
-        tokens.push(Token::new(
-            matching_part,
-            TokenKind::PunctuationOrWhitespace,
-        ));
-        string = rest;
+    Tokens {
+        string: Some(sentence),
+        next_token: None,
     }
-
-    tokens.push(Token::new(string, TokenKind::Word));
-    tokens.retain(|token| !token.is_empty());
-
-    tokens
 }
 
 fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &str) {
@@ -219,6 +252,25 @@ fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &s
     (first, second, third)
 }
 
+fn is_sentence_sane(sentence: &str) -> bool {
+    !sentence.chars().all(char::is_uppercase)
+}
+
 fn normalize(token: &str) -> String {
     token.to_lowercase()
 }
+
+type Padded<I: Iterator> = Chain<Chain<Take<Repeat<I::Item>>, I>, Take<Repeat<I::Item>>>;
+
+trait Paddable: Iterator {
+    fn pad(self, n: usize, padding: Self::Item) -> Padded<Self>
+        where Self: Sized,
+              Self::Item: Clone,
+    {
+        let before = repeat(padding.clone()).take(n);
+        let after = repeat(padding).take(n);
+        before.chain(self).chain(after)
+    }
+}
+
+impl<T: ?Sized> Paddable for T where T: Iterator { }
