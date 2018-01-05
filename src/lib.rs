@@ -214,9 +214,9 @@ impl<'a> Iterator for Tokens<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Token> {
-        if let Some(string) = self.next_token.take() {
-            if !string.is_empty() {
-                return Some(string);
+        if let Some(token) = self.next_token.take() {
+            if !token.is_empty() {
+                return Some(token);
             }
         }
 
