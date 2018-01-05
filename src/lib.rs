@@ -10,7 +10,7 @@ extern crate serde_derive;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::iter::{Chain, Take, Repeat, repeat};
+use std::iter::{repeat, Chain, Repeat, Take};
 
 use failure::Error;
 use itertools::Itertools;
@@ -40,7 +40,10 @@ impl Model {
         let mut trigram_stats = CaseStats::new();
 
         for sentence in text.lines().filter(|s| is_sentence_sane(s)) {
-            let tokens: Vec<_> = tokenize(sentence).pad(1, Token::padding()).filter(Token::is_meaningful).collect();
+            let tokens: Vec<_> = tokenize(sentence)
+                .pad(1, Token::padding())
+                .filter(Token::is_meaningful)
+                .collect();
 
             for token in tokens.iter().cloned() {
                 unigram_stats.add(token);
@@ -104,7 +107,6 @@ impl Model {
         truecase_tokens.into_iter().map(Option::unwrap).join("")
     }
 }
-
 
 /// `CaseStats` keeps track of how often we see each casing for different tokens
 #[derive(Default)]
@@ -264,8 +266,9 @@ type Padded<I: Iterator> = Chain<Chain<Take<Repeat<I::Item>>, I>, Take<Repeat<I:
 
 trait Paddable: Iterator {
     fn pad(self, n: usize, padding: Self::Item) -> Padded<Self>
-        where Self: Sized,
-              Self::Item: Clone,
+    where
+        Self: Sized,
+        Self::Item: Clone,
     {
         let before = repeat(padding.clone()).take(n);
         let after = repeat(padding).take(n);
@@ -273,4 +276,8 @@ trait Paddable: Iterator {
     }
 }
 
-impl<T: ?Sized> Paddable for T where T: Iterator { }
+impl<T: ?Sized> Paddable for T
+where
+    T: Iterator,
+{
+}
