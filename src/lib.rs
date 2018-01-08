@@ -9,12 +9,77 @@ extern crate serde_derive;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufRead, BufReader};
 use std::iter::{once, Chain, Filter, Once};
 
 use failure::Error;
 use itertools::Itertools;
 use regex::Regex;
+
+#[derive(Default)]
+pub struct ModelTrainer {
+    unigram_stats: CaseStats,
+    bigram_stats: CaseStats,
+    trigram_stats: CaseStats,
+}
+
+impl ModelTrainer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add_sentences_from_file(&mut self, filename: &str) -> Result<&mut Self, Error> {
+        let file = File::open(filename)?;
+        let reader = BufReader::new(file);
+        for line in reader.lines() {
+            self.add_sentence(&line?);
+        }
+
+        Ok(self)
+    }
+
+    pub fn add_sentences_from_iter<I>(&mut self, iter: I) -> &mut Self
+    where
+        I: Iterator,
+        I::Item: AsRef<str>,
+    {
+        for sentence in iter {
+            self.add_sentence(sentence.as_ref());
+        }
+
+        self
+    }
+
+    pub fn add_sentence(&mut self, sentence: &str) -> &mut Self {
+        if is_sentence_sane(sentence) {
+            let tokens: Vec<_> = tokenize(sentence.as_ref())
+                .filter(Token::is_meaningful)
+                .collect();
+
+            for token in tokens.iter().cloned() {
+                self.unigram_stats.add(token);
+            }
+
+            for ngram in tokens.windows(2).map(Token::ngram) {
+                self.bigram_stats.add(ngram);
+            }
+
+            for ngram in tokens.windows(3).map(Token::ngram) {
+                self.trigram_stats.add(ngram);
+            }
+        }
+
+        self
+    }
+
+    pub fn into_model(self) -> Model {
+        Model {
+            unigrams: self.unigram_stats.into_most_common(1),
+            bigrams: self.bigram_stats.into_most_common(10),
+            trigrams: self.trigram_stats.into_most_common(10),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
@@ -24,40 +89,6 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn train_on_file(filename: &str) -> Result<Self, Error> {
-        let mut text = String::new();
-        File::open(filename)?.read_to_string(&mut text)?;
-        Self::train_on_text(&text)
-    }
-
-    pub fn train_on_text(text: &str) -> Result<Self, Error> {
-        let mut unigram_stats = CaseStats::new();
-        let mut bigram_stats = CaseStats::new();
-        let mut trigram_stats = CaseStats::new();
-
-        for sentence in text.lines().filter(|s| is_sentence_sane(s)) {
-            let tokens: Vec<_> = tokenize(sentence).filter(Token::is_meaningful).collect();
-
-            for token in tokens.iter().cloned() {
-                unigram_stats.add(token);
-            }
-
-            for ngram in tokens.windows(2).map(Token::ngram) {
-                bigram_stats.add(ngram);
-            }
-
-            for ngram in tokens.windows(3).map(Token::ngram) {
-                trigram_stats.add(ngram);
-            }
-        }
-
-        Ok(Model {
-            unigrams: unigram_stats.into_most_common(1),
-            bigrams: bigram_stats.into_most_common(10),
-            trigrams: trigram_stats.into_most_common(10),
-        })
-    }
-
     pub fn truecase(&self, sentence: &str) -> String {
         let tokens: Vec<_> = tokenize(sentence).collect();
 
@@ -101,10 +132,6 @@ struct CaseStats {
 }
 
 impl CaseStats {
-    fn new() -> Self {
-        Self::default()
-    }
-
     fn add(&mut self, token: Token) {
         let count = self.stats
             .entry(token.normalized)
