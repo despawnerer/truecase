@@ -28,6 +28,6 @@ fn read_model(filename: &str) -> Result<Model, Error> {
 
 fn write_model(model: &Model, filename: &str) -> Result<(), Error> {
     let serialized = serde_json::to_string(&model)?;
-    File::create(filename)?.write(serialized.as_bytes())?;
+    File::create(filename)?.write_all(serialized.as_bytes())?;
     Ok(())
 }

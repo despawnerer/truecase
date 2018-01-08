@@ -230,7 +230,7 @@ impl<'a> Iterator for Tokens<'a> {
             }
         }
 
-        return None;
+        None
     }
 }
 
