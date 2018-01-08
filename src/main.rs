@@ -5,9 +5,9 @@ extern crate serde_json;
 extern crate truecase;
 
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Read, Write, stdin, stdout};
 
-use truecase::ModelTrainer;
+use truecase::{Model, ModelTrainer};
 use failure::Error;
 use clap::{App, Arg, SubCommand};
 
@@ -39,6 +39,34 @@ fn main() {
                         .multiple(true),
                 ),
         )
+        .subcommand(SubCommand::with_name("truecase")
+                .about("Create a truecasing model based on training data")
+                .arg(
+                    Arg::with_name("model")
+                        .short("m")
+                        .long("model")
+                        .value_name("FILE")
+                        .help("File containing the truecasing model produced by `train` command")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("input")
+                        .short("i")
+                        .long("input")
+                        .value_name("FILE")
+                        .help("File containing sentences that need to be truecased, one sentence per line. stdin by default.")
+                        .takes_value(true)
+                )
+                .arg(
+                    Arg::with_name("output")
+                        .short("o")
+                        .long("output")
+                        .value_name("FILE")
+                        .help("File into which truecased sentences will be written")
+                        .takes_value(true)
+                )
+        )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("train") {
@@ -46,6 +74,13 @@ fn main() {
         let output_filename = matches.value_of("output").unwrap();
         let input_filenames: Vec<_> = matches.values_of("input").unwrap().collect();
         do_train(input_filenames, output_filename).unwrap(); // FIXME
+    }
+
+    if let Some(matches) = matches.subcommand_matches("truecase") {
+        let model_filename = matches.value_of("model").unwrap();
+        let input_filename = matches.value_of("input");
+        let output_filename = matches.value_of("output");
+        do_truecase(model_filename, input_filename, output_filename).unwrap(); // FIXME
     }
 }
 
@@ -57,5 +92,29 @@ fn do_train(training_filenames: Vec<&str>, model_filename: &str) -> Result<(), E
     let model = trainer.into_model();
     let serialized = serde_json::to_string(&model)?;
     File::create(model_filename)?.write_all(serialized.as_bytes())?;
+    Ok(())
+}
+
+fn do_truecase(model_filename: &str, input_filename: Option<&str>, output_filename: Option<&str>) -> Result<(), Error> {
+    let mut string = String::new();
+    File::open(model_filename)?.read_to_string(&mut string)?;
+    let model: Model = serde_json::from_str(&string)?;
+
+    let input: Box<BufRead> = match input_filename {
+        Some(filename) => Box::new(BufReader::new(File::open(filename)?)),
+        None => Box::new(BufReader::new(stdin())),
+    };
+
+    let mut output: Box<Write> = match output_filename {
+        Some(filename) => Box::new(File::create(filename)?),
+        None => Box::new(stdout()),
+    };
+
+    for sentence in input.lines() {
+        let truecased = model.truecase(&sentence?);
+        output.write_all(truecased.as_bytes())?;
+        output.write_all(b"\n")?;
+    }
+
     Ok(())
 }
