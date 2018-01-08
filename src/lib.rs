@@ -248,7 +248,7 @@ fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &s
 }
 
 fn is_sentence_sane(sentence: &str) -> bool {
-    !sentence.chars().all(char::is_uppercase)
+    !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
 }
 
 fn normalize(token: &str) -> String {
