@@ -10,15 +10,11 @@ extern crate serde_derive;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::iter::{repeat, Chain, Repeat, Take};
+use std::iter::{once, Chain, Filter, Once};
 
 use failure::Error;
 use itertools::Itertools;
 use regex::Regex;
-
-lazy_static!{
-    static ref WORD_SEPARATORS: Regex = Regex::new(r"[,.?!:;\s]+").unwrap();
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
@@ -40,10 +36,7 @@ impl Model {
         let mut trigram_stats = CaseStats::new();
 
         for sentence in text.lines().filter(|s| is_sentence_sane(s)) {
-            let tokens: Vec<_> = tokenize(sentence)
-                .pad(1, Token::padding())
-                .filter(Token::is_meaningful)
-                .collect();
+            let tokens: Vec<_> = tokenize(sentence).filter(Token::is_meaningful).collect();
 
             for token in tokens.iter().cloned() {
                 unigram_stats.add(token);
@@ -66,7 +59,7 @@ impl Model {
     }
 
     pub fn truecase(&self, sentence: &str) -> String {
-        let tokens: Vec<_> = tokenize(sentence).pad(1, Token::padding()).collect();
+        let tokens: Vec<_> = tokenize(sentence).collect();
 
         let words_with_indexes: Vec<_> = tokens
             .iter()
@@ -138,6 +131,56 @@ impl CaseStats {
 
 type CaseMap = HashMap<String, String>;
 
+// Wow, this type is just horrible, isn't it.
+type Tokens<'a> = Chain<Chain<Once<Token>, Filter<Tokenizer<'a>, fn(&Token) -> bool>>, Once<Token>>;
+
+fn tokenize(sentence: &str) -> Tokens {
+    let token_isnt_empty = (|token| !token.is_empty()) as fn(&Token) -> bool;
+
+    let beginning = once(Token::padding());
+    let tokens = Tokenizer {
+        string: sentence,
+        next_token: None,
+    };
+    let end = once(Token::padding());
+
+    beginning.chain(tokens.filter(token_isnt_empty)).chain(end)
+}
+
+lazy_static!{
+    static ref WORD_SEPARATORS: Regex = Regex::new(r"[,.?!:;\s]+").unwrap();
+}
+
+struct Tokenizer<'a> {
+    next_token: Option<Token>,
+    string: &'a str,
+}
+
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        if let Some(token) = self.next_token.take() {
+            return Some(token);
+        }
+
+        if self.string.is_empty() {
+            return None;
+        }
+
+        if let Some(mat) = WORD_SEPARATORS.find(self.string) {
+            let (before, matching_part, rest) = split_in_three(self.string, mat.start(), mat.end());
+            self.string = rest;
+            self.next_token = Some(Token::separator(matching_part));
+            return Some(Token::word(before));
+        } else {
+            let rest = self.string;
+            self.string = "";
+            return Some(Token::word(rest));
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum TokenKind {
     Word,
@@ -198,49 +241,6 @@ impl Token {
     }
 }
 
-struct Tokens<'a> {
-    next_token: Option<Token>,
-    string: Option<&'a str>,
-}
-
-impl<'a> Iterator for Tokens<'a> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Token> {
-        if let Some(token) = self.next_token.take() {
-            if !token.is_empty() {
-                return Some(token);
-            }
-        }
-
-        if let Some(string) = self.string.take() {
-            if let Some(mat) = WORD_SEPARATORS.find(string) {
-                let (before, matching_part, rest) = split_in_three(string, mat.start(), mat.end());
-                self.string = Some(rest);
-
-                let separator = Token::separator(matching_part);
-                if before.is_empty() {
-                    return Some(separator);
-                } else {
-                    self.next_token = Some(separator);
-                    return Some(Token::word(before));
-                }
-            } else if !string.is_empty() {
-                return Some(Token::word(string));
-            }
-        }
-
-        None
-    }
-}
-
-fn tokenize(sentence: &str) -> Tokens {
-    Tokens {
-        string: Some(sentence),
-        next_token: None,
-    }
-}
-
 fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &str) {
     let (first, rest) = string.split_at(index1);
     let (second, third) = rest.split_at(index2 - index1);
@@ -253,24 +253,4 @@ fn is_sentence_sane(sentence: &str) -> bool {
 
 fn normalize(token: &str) -> String {
     token.to_lowercase()
-}
-
-type Padded<I: Iterator> = Chain<Chain<Take<Repeat<I::Item>>, I>, Take<Repeat<I::Item>>>;
-
-trait Paddable: Iterator {
-    fn pad(self, n: usize, padding: Self::Item) -> Padded<Self>
-    where
-        Self: Sized,
-        Self::Item: Clone,
-    {
-        let before = repeat(padding.clone()).take(n);
-        let after = repeat(padding).take(n);
-        before.chain(self).chain(after)
-    }
-}
-
-impl<T: ?Sized> Paddable for T
-where
-    T: Iterator,
-{
 }
