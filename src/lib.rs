@@ -67,7 +67,6 @@ impl Model {
 
     pub fn truecase(&self, sentence: &str) -> String {
         let tokens: Vec<_> = tokenize(sentence).pad(1, Token::padding()).collect();
-        let total_tokens = tokens.len();
 
         let words_with_indexes: Vec<_> = tokens
             .iter()
@@ -75,36 +74,30 @@ impl Model {
             .filter(|x| x.1.is_meaningful())
             .collect();
 
-        let mut truecase_tokens: Vec<Option<String>> = Vec::with_capacity(total_tokens);
-        truecase_tokens.resize(total_tokens, None);
+        let mut truecase_tokens: Vec<_> = tokens.iter().map(|t| t.normalized.clone()).collect();
 
-        let select_true_case_from_ngrams =
-            |size, source: &CaseMap, result: &mut Vec<Option<String>>| {
-                for slice in words_with_indexes.windows(size) {
-                    let indexes = slice.iter().map(|x| x.0);
-                    let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
-                    if let Some(truecased_ngram) = source.get(&normalized_ngram) {
-                        for (word, index) in truecased_ngram.split(" ").zip(indexes) {
-                            result[index].get_or_insert_with(|| word.to_owned());
-                        }
-                    }
-                }
-            };
-
-        select_true_case_from_ngrams(3, &self.trigrams, &mut truecase_tokens);
-        select_true_case_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
-
-        for (truecase, token) in truecase_tokens.iter_mut().zip(tokens.iter()) {
-            if token.is_meaningful() && truecase.is_none() {
-                *truecase = self.unigrams.get(&token.normalized).map(String::clone);
-            }
-
-            if truecase.is_none() {
-                *truecase = Some(token.original.clone());
+        for &(index, token) in &words_with_indexes {
+            if let Some(truecased_word) = self.unigrams.get(&token.normalized) {
+                truecase_tokens[index] = truecased_word.to_owned();
             }
         }
 
-        truecase_tokens.into_iter().map(Option::unwrap).join("")
+        let select_true_case_from_ngrams = |size, source: &CaseMap, result: &mut Vec<String>| {
+            for slice in words_with_indexes.windows(size) {
+                let indexes = slice.iter().map(|x| x.0);
+                let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
+                if let Some(truecased_ngram) = source.get(&normalized_ngram) {
+                    for (word, index) in truecased_ngram.split(' ').zip(indexes) {
+                        result[index] = word.to_owned();
+                    }
+                }
+            }
+        };
+
+        select_true_case_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
+        select_true_case_from_ngrams(3, &self.trigrams, &mut truecase_tokens);
+
+        truecase_tokens.join("")
     }
 }
 
