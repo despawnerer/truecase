@@ -6,16 +6,18 @@ extern crate regex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::iter::{once, Chain, Filter, Once};
 
 use failure::Error;
 use itertools::Itertools;
 use regex::Regex;
 
+/// Trainer for new truecasing models
 #[derive(Default)]
 pub struct ModelTrainer {
     unigram_stats: CaseStats,
@@ -81,6 +83,7 @@ impl ModelTrainer {
     }
 }
 
+/// Simple statistical truecaser for sentences
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
     unigrams: CaseMap,
@@ -89,6 +92,21 @@ pub struct Model {
 }
 
 impl Model {
+    pub fn load_from_file(filename: &str) -> Result<Self, Error> {
+        let mut string = String::new();
+        File::open(filename)?.read_to_string(&mut string)?;
+        let model = serde_json::from_str(&string)?;
+
+        Ok(model)
+    }
+
+    pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
+        let serialized = serde_json::to_string(&self)?;
+        File::create(filename)?.write_all(serialized.as_bytes())?;
+
+        Ok(())
+    }
+
     pub fn truecase(&self, sentence: &str) -> String {
         let tokens: Vec<_> = tokenize(sentence).collect();
 
@@ -125,7 +143,6 @@ impl Model {
     }
 }
 
-/// `CaseStats` keeps track of how often we see each casing for different tokens
 #[derive(Default)]
 struct CaseStats {
     stats: HashMap<String, HashMap<String, u32>>,
@@ -162,6 +179,7 @@ type CaseMap = HashMap<String, String>;
 type Tokens<'a> = Chain<Chain<Once<Token>, Filter<Tokenizer<'a>, fn(&Token) -> bool>>, Once<Token>>;
 
 fn tokenize(sentence: &str) -> Tokens {
+    // The fact that I have to do this is just unfortunate.
     let token_isnt_empty = (|token| !token.is_empty()) as fn(&Token) -> bool;
 
     let beginning = once(Token::padding());

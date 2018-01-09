@@ -1,11 +1,10 @@
 extern crate clap;
 extern crate failure;
-extern crate serde_json;
 
 extern crate truecase;
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Write, stdin, stdout};
+use std::io::{BufRead, BufReader, Write, stdin, stdout};
 
 use truecase::{Model, ModelTrainer};
 use failure::Error;
@@ -90,15 +89,13 @@ fn do_train(training_filenames: Vec<&str>, model_filename: &str) -> Result<(), E
         trainer.add_sentences_from_file(filename)?;
     }
     let model = trainer.into_model();
-    let serialized = serde_json::to_string(&model)?;
-    File::create(model_filename)?.write_all(serialized.as_bytes())?;
+    model.save_to_file(model_filename)?;
+
     Ok(())
 }
 
 fn do_truecase(model_filename: &str, input_filename: Option<&str>, output_filename: Option<&str>) -> Result<(), Error> {
-    let mut string = String::new();
-    File::open(model_filename)?.read_to_string(&mut string)?;
-    let model: Model = serde_json::from_str(&string)?;
+    let model = Model::load_from_file(model_filename)?;
 
     let input: Box<BufRead> = match input_filename {
         Some(filename) => Box::new(BufReader::new(File::open(filename)?)),
