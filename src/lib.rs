@@ -1,3 +1,61 @@
+//! This is a simple statistical truecasing library.
+//!
+//! _Truecasing_ is restoration of original letter cases in text:
+//! for example, turning all-uppercase, or all-lowercase text into
+//! one that has proper sentence casing (capital first letter,
+//! capitalized names etc).
+//!
+//! This crate attempts to solve this problem by gathering statistics
+//! from a set of training sentences, then using those statistics
+//! to truecase sentences with broken casings. It comes with a
+//! command-line utility that makes training a model easy.
+//!
+//! # Training a model using the CLI tool
+//!
+//! 1. Create a file containing training sentences. Each sentence
+//!    must be on its own line and have proper casing. The bigger
+//!    the training set, the better and more accurate the model will be.
+//!
+//! 2. Use `truecase` CLI tool to build a model. This may take some time,
+//!    depending on the size of the training set. The following command will
+//!    read training data from `training_sentences.txt` file and write
+//!    the model into `model.json` file.
+//!
+//!    ```bash
+//!    truecase train -i training_sentences.txt -o model.json
+//!    ```
+//!
+//!    Run `truecase train --help` for more details.
+//!
+//! # Training a model from Rust
+//!
+//! ```
+//! use truecase::ModelTrainer;
+//!
+//! let mut trainer = ModelTrainer::new();
+//! trainer.add_sentence("Here's a sample training sentence for truecasing");
+//! trainer.add_sentences_from_file("training_data.txt")?;
+//!
+//! let model = trainer.into_model();
+//! model.save_to_file("model.json")?;
+//! ```
+//!
+//! See also [`ModelTrainer`](struct.ModelTrainer.html).
+//!
+//! # Using a model to truecase text
+//!
+//! ```
+//! use truecase::Model;
+//!
+//! let model = Model::load_from_file("model.json")?;
+//! let truecased_text = model.truecase("i don't think shakespeare would approve of this sample text");
+//! assert_eq!(truecase_text, "I don't think Shakespeare would approve of this sample text");
+//! ```
+//!
+//! See also [`Model`](struct.Model.html).
+//!
+//! For truecasing using the CLI tool, see `truecase truecase --help`.
+
 extern crate failure;
 extern crate itertools;
 #[macro_use]
@@ -17,8 +75,11 @@ use failure::Error;
 use itertools::Itertools;
 use regex::Regex;
 
-/// Trainer for new truecasing models
-#[derive(Default)]
+/// Trainer for new truecasing models.
+///
+/// Use this to create your own models from a set of training sentences.
+/// See [crate documentation](index.html) for examples.
+#[derive(Debug, Default)]
 pub struct ModelTrainer {
     unigram_stats: CaseStats,
     bigram_stats: CaseStats,
@@ -26,10 +87,14 @@ pub struct ModelTrainer {
 }
 
 impl ModelTrainer {
+    /// Create a new model trainer.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add sentences to the training set from a file.
+    ///
+    /// The file is assumed to have one sentence per line.
     pub fn add_sentences_from_file(&mut self, filename: &str) -> Result<&mut Self, Error> {
         let file = File::open(filename)?;
         let reader = BufReader::new(file);
@@ -40,6 +105,7 @@ impl ModelTrainer {
         Ok(self)
     }
 
+    /// Add multiple sentences to the training set from an iterator.
     pub fn add_sentences_from_iter<I>(&mut self, iter: I) -> &mut Self
     where
         I: Iterator,
@@ -52,6 +118,7 @@ impl ModelTrainer {
         self
     }
 
+    /// Add one sentence to the training set.
     pub fn add_sentence(&mut self, sentence: &str) -> &mut Self {
         if is_sentence_sane(sentence) {
             let tokens: Vec<_> = tokenize(sentence.as_ref())
@@ -74,6 +141,7 @@ impl ModelTrainer {
         self
     }
 
+    /// Build a model from all gathered statistics.
     pub fn into_model(self) -> Model {
         Model {
             unigrams: self.unigram_stats.into_most_common(1),
@@ -83,7 +151,9 @@ impl ModelTrainer {
     }
 }
 
-/// Simple statistical truecaser for sentences
+/// Truecasing model itself.
+///
+/// See [crate documentation](index.html) for examples.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
     unigrams: CaseMap,
@@ -92,6 +162,16 @@ pub struct Model {
 }
 
 impl Model {
+    /// Save this model into a file with the given filename.
+    /// The format is simple JSON right now.
+    pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
+        let serialized = serde_json::to_string(&self)?;
+        File::create(filename)?.write_all(serialized.as_bytes())?;
+
+        Ok(())
+    }
+
+    /// Load a previously saved model from a file
     pub fn load_from_file(filename: &str) -> Result<Self, Error> {
         let mut string = String::new();
         File::open(filename)?.read_to_string(&mut string)?;
@@ -100,13 +180,7 @@ impl Model {
         Ok(model)
     }
 
-    pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
-        let serialized = serde_json::to_string(&self)?;
-        File::create(filename)?.write_all(serialized.as_bytes())?;
-
-        Ok(())
-    }
-
+    /// Restore case in a sentence using statistical data in the model
     pub fn truecase(&self, sentence: &str) -> String {
         let tokens: Vec<_> = tokenize(sentence).collect();
 
@@ -143,7 +217,7 @@ impl Model {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct CaseStats {
     stats: HashMap<String, HashMap<String, u32>>,
 }
