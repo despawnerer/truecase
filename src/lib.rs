@@ -70,6 +70,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::iter::{once, Chain, Filter, Once};
+use std::io;
 
 use failure::Error;
 use itertools::Itertools;
@@ -95,7 +96,7 @@ impl ModelTrainer {
     /// Add sentences to the training set from a file.
     ///
     /// The file is assumed to have one sentence per line.
-    pub fn add_sentences_from_file(&mut self, filename: &str) -> Result<&mut Self, Error> {
+    pub fn add_sentences_from_file(&mut self, filename: &str) -> io::Result<&mut Self> {
         let file = File::open(filename)?;
         let reader = BufReader::new(file);
         for line in reader.lines() {
