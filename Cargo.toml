@@ -1,7 +1,12 @@
 [package]
 authors = ["Aleksei Voronov <despawn@gmail.com>"]
+description = "Restore correct letter casings in arbitrary text using a statistical model"
+documentation = "https://docs.rs/truecase"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/despawnerer/truecase"
 name = "truecase"
 version = "0.1.0"
+readme = "README.md"
 
 [dependencies]
 clap = "2.29.0"
