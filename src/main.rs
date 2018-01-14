@@ -4,7 +4,7 @@ extern crate failure;
 extern crate truecase;
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write, stdin, stdout};
+use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use truecase::{Model, ModelTrainer};
 use failure::Error;
@@ -94,7 +94,11 @@ fn do_train(training_filenames: Vec<&str>, model_filename: &str) -> Result<(), E
     Ok(())
 }
 
-fn do_truecase(model_filename: &str, input_filename: Option<&str>, output_filename: Option<&str>) -> Result<(), Error> {
+fn do_truecase(
+    model_filename: &str,
+    input_filename: Option<&str>,
+    output_filename: Option<&str>,
+) -> Result<(), Error> {
     let model = Model::load_from_file(model_filename)?;
 
     let input: Box<BufRead> = match input_filename {
