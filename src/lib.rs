@@ -144,8 +144,10 @@ impl ModelTrainer {
 
     /// Build a model from all gathered statistics.
     pub fn into_model(self) -> Model {
+        let mut unigrams = self.unigram_stats.into_most_common(1);
+        unigrams.retain(|k, v| k != v);
         Model {
-            unigrams: self.unigram_stats.into_most_common(1),
+            unigrams,
             bigrams: self.bigram_stats.into_most_common(10),
             trigrams: self.trigram_stats.into_most_common(10),
         }
