@@ -8,6 +8,10 @@ name = "truecase"
 version = "0.1.0"
 readme = "README.md"
 
+[[bench]]
+harness = false
+name = "training"
+
 [dependencies]
 clap = "2.29.0"
 failure = "0.1.1"
@@ -17,3 +21,6 @@ regex = "0.2.3"
 serde = "1.0.25"
 serde_derive = "1.0.25"
 serde_json = "1.0.8"
+
+[dev-dependencies]
+bencher = "*"
