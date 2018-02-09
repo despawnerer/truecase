@@ -371,6 +371,6 @@ fn is_sentence_sane(sentence: &str) -> bool {
     !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
 }
 
-fn normalize(token: &str) -> String {
-    token.to_lowercase()
+fn normalize(string: &str) -> String {
+    string.to_lowercase()
 }
