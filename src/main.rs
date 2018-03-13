@@ -32,9 +32,8 @@ fn main() {
                         .short("i")
                         .long("input")
                         .value_name("FILE")
-                        .help("File containing training data, one sentence per line.")
+                        .help("File containing training data, one sentence per line. stdin by default")
                         .takes_value(true)
-                        .required(true)
                         .multiple(true),
                 ),
         )
@@ -69,13 +68,14 @@ fn main() {
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("train") {
-        // both .unwraps are safe because the arguments are required
+        // .unwrap is safe because the argument is required
         let output_filename = matches.value_of("output").unwrap();
-        let input_filenames: Vec<_> = matches.values_of("input").unwrap().collect();
+        let input_filenames = matches.values_of("input");
         do_train(input_filenames, output_filename).unwrap(); // FIXME
     }
 
     if let Some(matches) = matches.subcommand_matches("truecase") {
+        // .unwrap is safe because the argument is required
         let model_filename = matches.value_of("model").unwrap();
         let input_filename = matches.value_of("input");
         let output_filename = matches.value_of("output");
@@ -83,11 +83,21 @@ fn main() {
     }
 }
 
-fn do_train(training_filenames: Vec<&str>, model_filename: &str) -> Result<(), Error> {
+fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> Result<(), Error> {
     let mut trainer = ModelTrainer::new();
-    for filename in training_filenames {
-        trainer.add_sentences_from_file(filename)?;
+
+    match training_filenames {
+        Some(filenames) => for filename in filenames {
+            trainer.add_sentences_from_file(filename)?;
+        },
+        None => {
+            let stdin_reader = BufReader::new(stdin());
+            for sentence in stdin_reader.lines() {
+                trainer.add_sentence(&sentence?);
+            }
+        }
     }
+
     let model = trainer.into_model();
     model.save_to_file(model_filename)?;
 
