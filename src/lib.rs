@@ -122,20 +122,20 @@ impl ModelTrainer {
     /// Add one sentence to the training set.
     pub fn add_sentence(&mut self, sentence: &str) -> &mut Self {
         if is_sentence_sane(sentence) {
-            let tokens: Vec<_> = tokenize(sentence.as_ref())
+            let tokens: Vec<_> = tokenize_sentence(sentence)
                 .filter(Token::is_meaningful)
                 .collect();
 
-            for token in tokens.iter().cloned() {
-                self.unigram_stats.add(token);
+            for token in &tokens {
+                self.unigram_stats.add_token(token);
             }
 
-            for ngram in tokens.windows(2).map(Token::ngram) {
-                self.bigram_stats.add(ngram);
+            for ngram in tokens.windows(2) {
+                self.bigram_stats.add_ngram(ngram);
             }
 
-            for ngram in tokens.windows(3).map(Token::ngram) {
-                self.trigram_stats.add(ngram);
+            for ngram in tokens.windows(3) {
+                self.trigram_stats.add_ngram(ngram);
             }
         }
 
@@ -183,29 +183,44 @@ impl Model {
         Ok(model)
     }
 
-    /// Restore case in a sentence using statistical data in the model
+    /// Restore word casings in a sentence
     pub fn truecase(&self, sentence: &str) -> String {
-        let tokens: Vec<_> = tokenize(sentence).collect();
+        self.truecase_tokens(tokenize_sentence(sentence))
+    }
 
-        let words_with_indexes: Vec<_> = tokens
-            .iter()
-            .enumerate()
-            .filter(|x| x.1.is_meaningful())
-            .collect();
+    /// Restore word casings in a phrase (sentence fragment)
+    pub fn truecase_phrase(&self, phrase: &str) -> String {
+        self.truecase_tokens(tokenize(phrase))
+    }
 
-        let mut truecase_tokens: Vec<_> = tokens.iter().map(|t| t.normalized.clone()).collect();
+    fn truecase_tokens<'a, I>(&self, tokens: I) -> String
+    where
+        I: Iterator<Item = Token<'a>>,
+    {
+        let mut truecase_tokens = Vec::with_capacity(3);
+        let mut normalized_words_with_indexes = Vec::with_capacity(3);
 
-        for &(index, token) in &words_with_indexes {
-            if let Some(truecased_word) = self.unigrams.get(&token.normalized) {
-                truecase_tokens[index] = truecased_word.to_owned();
+        for (index, token) in tokens.enumerate() {
+            let truecased;
+
+            if token.is_meaningful() {
+                truecased = self.unigrams
+                    .get(&token.normalized)
+                    .unwrap_or(&token.normalized)
+                    .clone();
+                normalized_words_with_indexes.push((index, token.normalized));
+            } else {
+                truecased = token.original.to_owned();
             }
+
+            truecase_tokens.push(truecased);
         }
 
-        let select_true_case_from_ngrams = |size, source: &CaseMap, result: &mut Vec<String>| {
-            for slice in words_with_indexes.windows(size) {
+        let update_true_cases_from_ngrams = |size, source: &CaseMap, result: &mut Vec<String>| {
+            for slice in normalized_words_with_indexes.windows(size) {
                 let indexes = slice.iter().map(|x| x.0);
-                let normalized_ngram = slice.iter().map(|x| &x.1.normalized).join(" ");
-                if let Some(truecased_ngram) = source.get(&normalized_ngram) {
+                let ngram = slice.iter().map(|x| &x.1).join(" ");
+                if let Some(truecased_ngram) = source.get(&ngram) {
                     for (word, index) in truecased_ngram.split(' ').zip(indexes) {
                         result[index] = word.to_owned();
                     }
@@ -213,8 +228,8 @@ impl Model {
             }
         };
 
-        select_true_case_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
-        select_true_case_from_ngrams(3, &self.trigrams, &mut truecase_tokens);
+        update_true_cases_from_ngrams(2, &self.bigrams, &mut truecase_tokens);
+        update_true_cases_from_ngrams(3, &self.trigrams, &mut truecase_tokens);
 
         truecase_tokens.join("")
     }
@@ -226,13 +241,22 @@ struct CaseStats {
 }
 
 impl CaseStats {
-    fn add(&mut self, token: Token) {
-        let count = self.stats
-            .entry(token.normalized)
-            .or_insert_with(HashMap::new)
-            .entry(token.original)
-            .or_insert(0);
+    fn add_token(&mut self, token: &Token) {
+        self.add_string(token.original, &token.normalized)
+    }
 
+    fn add_ngram(&mut self, ngram: &[Token]) {
+        let original = ngram.iter().map(|t| t.original).join(" ");
+        let normalized = ngram.iter().map(|t| &t.normalized).join(" ");
+        self.add_string(&original, &normalized)
+    }
+
+    fn add_string(&mut self, original: &str, normalized: &str) {
+        let count = self.stats
+            .entry(normalized.to_owned())
+            .or_insert_with(HashMap::new)
+            .entry(original.to_owned())
+            .or_insert(0);
         *count += 1;
     }
 
@@ -252,21 +276,22 @@ impl CaseStats {
 
 type CaseMap = HashMap<String, String>;
 
-// Wow, this type is just horrible, isn't it.
-type Tokens<'a> = Chain<Chain<Once<Token>, Filter<Tokenizer<'a>, fn(&Token) -> bool>>, Once<Token>>;
+type Tokens<'a> = Filter<Tokenizer<'a>, fn(&Token) -> bool>;
+type SentenceTokens<'a> = Chain<Chain<Once<Token<'a>>, Tokens<'a>>, Once<Token<'a>>>;
 
-fn tokenize(sentence: &str) -> Tokens {
-    // The fact that I have to do this is just unfortunate.
-    let token_isnt_empty = (|token| !token.is_empty()) as fn(&Token) -> bool;
+fn tokenize_sentence(sentence: &str) -> SentenceTokens {
+    let beginning = once(Token::new_padding());
+    let tokens = tokenize(sentence);
+    let end = once(Token::new_padding());
+    beginning.chain(tokens).chain(end)
+}
 
-    let beginning = once(Token::padding());
+fn tokenize(phrase: &str) -> Tokens {
     let tokens = Tokenizer {
-        string: sentence,
+        string: phrase,
         next_token: None,
     };
-    let end = once(Token::padding());
-
-    beginning.chain(tokens.filter(token_isnt_empty)).chain(end)
+    tokens.filter(|t| !t.is_empty())
 }
 
 lazy_static!{
@@ -274,14 +299,14 @@ lazy_static!{
 }
 
 struct Tokenizer<'a> {
-    next_token: Option<Token>,
+    next_token: Option<Token<'a>>,
     string: &'a str,
 }
 
 impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
-    fn next(&mut self) -> Option<Token> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(token) = self.next_token.take() {
             return Some(token);
         }
@@ -293,35 +318,33 @@ impl<'a> Iterator for Tokenizer<'a> {
         if let Some(mat) = WORD_SEPARATORS.find(self.string) {
             let (before, matching_part, rest) = split_in_three(self.string, mat.start(), mat.end());
             self.string = rest;
-            self.next_token = Some(Token::separator(matching_part));
-            return Some(Token::word(before));
+            self.next_token = Some(Token::new(matching_part, TokenKind::Separator));
+            return Some(Token::new(before, TokenKind::Word));
         } else {
             let rest = self.string;
             self.string = "";
-            return Some(Token::word(rest));
+            return Some(Token::new(rest, TokenKind::Word));
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum TokenKind {
     Word,
-    Ngram,
     Separator,
     Padding,
 }
 
 #[derive(Debug, Clone)]
-struct Token {
-    pub original: String,
+struct Token<'a> {
+    pub original: &'a str,
     pub normalized: String,
     pub kind: TokenKind,
 }
 
-impl Token {
-    fn new(string: &str, kind: TokenKind) -> Self {
-        let original = string.to_owned();
-        let normalized = normalize(&original);
+impl<'a> Token<'a> {
+    fn new(original: &'a str, kind: TokenKind) -> Self {
+        let normalized = original.to_lowercase();
         Self {
             original,
             normalized,
@@ -329,26 +352,8 @@ impl Token {
         }
     }
 
-    fn padding() -> Self {
+    fn new_padding() -> Self {
         Self::new("", TokenKind::Padding)
-    }
-
-    fn word(string: &str) -> Self {
-        Self::new(string, TokenKind::Word)
-    }
-
-    fn ngram(tokens: &[Token]) -> Self {
-        let original = tokens.iter().map(|t| &t.original).join(" ");
-        let normalized = tokens.iter().map(|t| &t.normalized).join(" ");
-        Self {
-            original,
-            normalized,
-            kind: TokenKind::Ngram,
-        }
-    }
-
-    fn separator(string: &str) -> Self {
-        Self::new(string, TokenKind::Separator)
     }
 
     fn is_meaningful(&self) -> bool {
@@ -371,8 +376,5 @@ fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &s
 
 fn is_sentence_sane(sentence: &str) -> bool {
     !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
-}
-
-fn normalize(string: &str) -> String {
-    string.to_lowercase()
+        && sentence.trim().len() > 0
 }
