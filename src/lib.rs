@@ -57,7 +57,6 @@
 //! For truecasing using the CLI tool, see `truecase truecase --help`.
 
 extern crate failure;
-extern crate itertools;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
@@ -73,7 +72,6 @@ use std::iter::{once, Chain, Filter, Once};
 use std::io;
 
 use failure::Error;
-use itertools::Itertools;
 use regex::Regex;
 
 /// Trainer for new truecasing models.
@@ -219,7 +217,7 @@ impl Model {
         let update_true_cases_from_ngrams = |size, source: &CaseMap, result: &mut Vec<String>| {
             for slice in normalized_words_with_indexes.windows(size) {
                 let indexes = slice.iter().map(|x| x.0);
-                let ngram = slice.iter().map(|x| &x.1).join(" ");
+                let ngram = join_with_spaces(slice.iter().map(get_second_item));
                 if let Some(truecased_ngram) = source.get(&ngram) {
                     for (word, index) in truecased_ngram.split(' ').zip(indexes) {
                         result[index] = word.to_owned();
@@ -246,8 +244,8 @@ impl CaseStats {
     }
 
     fn add_ngram(&mut self, ngram: &[Token]) {
-        let original = ngram.iter().map(|t| t.original).join(" ");
-        let normalized = ngram.iter().map(|t| &t.normalized).join(" ");
+        let original = join_with_spaces(ngram.iter().map(Token::get_original));
+        let normalized = join_with_spaces(ngram.iter().map(Token::get_normalized));
         self.add_string(&original, &normalized)
     }
 
@@ -366,6 +364,16 @@ impl<'a> Token<'a> {
     fn is_empty(&self) -> bool {
         self.original.is_empty()
     }
+
+    // these functions are only necessary because closures can't be cloned and
+    // `join_with_spaces` requires a cloneable iterator
+    fn get_normalized(&self) -> &str {
+        &self.normalized
+    }
+
+    fn get_original(&self) -> &str {
+        self.original
+    }
 }
 
 fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &str) {
@@ -374,7 +382,33 @@ fn split_in_three(string: &str, index1: usize, index2: usize) -> (&str, &str, &s
     (first, second, third)
 }
 
+fn join_with_spaces<I>(mut iter: I) -> String
+where
+    I: Iterator + Clone,
+    I::Item: AsRef<str>,
+{
+    let length: usize = iter.clone().map(|item| item.as_ref().len() + 1).sum::<usize>() - 1;
+    let mut string = String::with_capacity(length);
+
+    match iter.next() {
+        Some(item) => string.push_str(item.as_ref()),
+        None => return string,
+    };
+
+    for item in iter {
+        string.push(' ');
+        string.push_str(item.as_ref());
+    }
+    string
+}
+
 fn is_sentence_sane(sentence: &str) -> bool {
     !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
         && sentence.trim().len() > 0
+}
+
+// this is only necessary because closures can't be cloned and
+// `join_with_spaces` requires a cloneable iterator
+fn get_second_item<A, B>(tuple: &(A, B)) -> &B {
+    &tuple.1
 }
