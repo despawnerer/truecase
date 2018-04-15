@@ -67,9 +67,9 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::fs::File;
+use std::io;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::iter::{once, Chain, Filter, Once};
-use std::io;
 
 use failure::Error;
 use regex::Regex;
@@ -302,7 +302,7 @@ fn tokenize(phrase: &str) -> Tokens {
     tokens.filter(|t| !t.is_empty())
 }
 
-lazy_static!{
+lazy_static! {
     static ref WORD_SEPARATORS: Regex = Regex::new(r#"[,.?!:;()«»“”"—\s]+"#).unwrap();
 }
 
@@ -397,7 +397,9 @@ where
     I: Iterator + Clone,
     I::Item: AsRef<str>,
 {
-    let length: usize = iter.clone().map(|item| item.as_ref().len() + 1).sum::<usize>() - 1;
+    let length: usize = iter.clone()
+        .map(|item| item.as_ref().len() + 1)
+        .sum::<usize>() - 1;
     let mut string = String::with_capacity(length);
 
     match iter.next() {

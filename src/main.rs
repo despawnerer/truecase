@@ -6,9 +6,9 @@ extern crate truecase;
 use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
-use truecase::{Model, ModelTrainer};
-use failure::Error;
 use clap::{App, Arg, SubCommand};
+use failure::Error;
+use truecase::{Model, ModelTrainer};
 
 fn main() {
     let matches = App::new("truecase.rs")

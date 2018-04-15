@@ -5,7 +5,6 @@ extern crate truecase;
 use bencher::Bencher;
 use truecase::ModelTrainer;
 
-
 fn bench_training(b: &mut Bencher) {
     let training_sentences = r###"
         The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced "no evidence" that any irregularities took place.
@@ -39,7 +38,6 @@ fn bench_training(b: &mut Bencher) {
         let _model = trainer.into_model();
     });
 }
-
 
 benchmark_group!(benches, bench_training);
 benchmark_main!(benches);
