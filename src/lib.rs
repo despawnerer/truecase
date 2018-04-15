@@ -250,12 +250,22 @@ impl CaseStats {
     }
 
     fn add_string(&mut self, original: &str, normalized: &str) {
-        let count = self.stats
-            .entry(normalized.to_owned())
-            .or_insert_with(HashMap::new)
-            .entry(original.to_owned())
-            .or_insert(0);
-        *count += 1;
+        // currently it's impossible to add things to a hashmap ergonomically
+        // using the .entry() API without needlessly cloning all of the source strings every time
+        if let Some(counts) = self.stats.get_mut(normalized) {
+            if let Some(count) = counts.get_mut(original) {
+                *count += 1;
+                return;
+            }
+
+            counts.insert(original.to_owned(), 1);
+            return;
+        }
+
+        let mut counts = HashMap::with_capacity(1);
+        counts.insert(original.to_owned(), 1);
+
+        self.stats.insert(normalized.to_owned(), counts);
     }
 
     fn into_most_common(self, min_frequency: u32) -> CaseMap {
