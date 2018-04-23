@@ -65,6 +65,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -203,9 +204,10 @@ impl Model {
 
             if token.is_meaningful() {
                 truecased = self.unigrams
-                    .get(&token.normalized)
-                    .unwrap_or(&token.normalized)
-                    .clone();
+                    .get(token.normalized.as_ref())
+                    .map(|string| string.as_str())
+                    .unwrap_or(token.normalized.as_ref())
+                    .to_owned();
                 normalized_words_with_indexes.push((index, token.normalized));
             } else {
                 truecased = token.original.to_owned();
@@ -346,13 +348,18 @@ enum TokenKind {
 #[derive(Debug, Clone)]
 struct Token<'a> {
     pub original: &'a str,
-    pub normalized: String,
+    pub normalized: Cow<'a, str>,
     pub kind: TokenKind,
 }
 
 impl<'a> Token<'a> {
     fn new(original: &'a str, kind: TokenKind) -> Self {
-        let normalized = original.to_lowercase();
+        let normalized = if kind == TokenKind::Word && original.contains(char::is_uppercase) {
+            Cow::Owned(original.to_lowercase())
+        } else {
+            Cow::Borrowed(original)
+        };
+
         Self {
             original,
             normalized,
@@ -378,7 +385,7 @@ impl<'a> Token<'a> {
     // these functions are only necessary because closures can't be cloned and
     // `join_with_spaces` requires a cloneable iterator
     fn get_normalized(&self) -> &str {
-        &self.normalized
+        self.normalized.as_ref()
     }
 
     fn get_original(&self) -> &str {
