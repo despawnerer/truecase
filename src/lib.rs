@@ -70,7 +70,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::iter::{once, Chain, Filter, Once};
+use std::iter::Filter;
 
 use failure::Error;
 use regex::Regex;
@@ -120,22 +120,29 @@ impl ModelTrainer {
 
     /// Add one sentence to the training set.
     pub fn add_sentence(&mut self, sentence: &str) -> &mut Self {
-        if is_sentence_sane(sentence) {
-            let tokens: Vec<_> = tokenize_sentence(sentence)
-                .filter(Token::is_meaningful)
-                .collect();
+        if !is_sentence_sane(sentence) {
+            return self;
+        }
 
-            for token in &tokens {
-                self.unigram_stats.add_token(token);
-            }
+        let tokens: Vec<_> = tokenize(sentence)
+            .filter(Token::is_meaningful)
+            // skip the first word of the sentence because certain words are more
+            // likely to start a sentence than to be in the middle of it,
+            // but when they are indeed in the middle, they are not capitalized
+            // which leads to statistical data that doesn't make much sense
+            .skip(1)
+            .collect();
 
-            for ngram in tokens.windows(2) {
-                self.bigram_stats.add_ngram(ngram);
-            }
+        for token in &tokens {
+            self.unigram_stats.add_token(token);
+        }
 
-            for ngram in tokens.windows(3) {
-                self.trigram_stats.add_ngram(ngram);
-            }
+        for ngram in tokens.windows(2) {
+            self.bigram_stats.add_ngram(ngram);
+        }
+
+        for ngram in tokens.windows(3) {
+            self.trigram_stats.add_ngram(ngram);
         }
 
         self
@@ -163,6 +170,11 @@ pub struct Model {
     trigrams: CaseMap,
 }
 
+enum TruecasingMode {
+    Sentence,
+    Phrase,
+}
+
 impl Model {
     /// Save this model into a file with the given filename.
     /// The format is simple JSON right now.
@@ -184,31 +196,48 @@ impl Model {
 
     /// Restore word casings in a sentence
     pub fn truecase(&self, sentence: &str) -> String {
-        self.truecase_tokens(tokenize_sentence(sentence))
+        self.truecase_tokens(tokenize(sentence), TruecasingMode::Sentence)
     }
 
     /// Restore word casings in a phrase (sentence fragment)
     pub fn truecase_phrase(&self, phrase: &str) -> String {
-        self.truecase_tokens(tokenize(phrase))
+        self.truecase_tokens(tokenize(phrase), TruecasingMode::Phrase)
     }
 
-    fn truecase_tokens<'a, I>(&self, tokens: I) -> String
+    fn truecase_tokens<'a, I>(&self, tokens: I, mode: TruecasingMode) -> String
     where
         I: Iterator<Item = Token<'a>>,
     {
         let mut truecase_tokens = Vec::with_capacity(3);
         let mut normalized_words_with_indexes = Vec::with_capacity(3);
 
+        let mut special_case_first_word = match mode {
+            TruecasingMode::Sentence => true,
+            TruecasingMode::Phrase => false,
+        };
+
         for (index, token) in tokens.enumerate() {
             let truecased;
 
             if token.is_meaningful() {
-                truecased = self.unigrams
+                let from_unigrams = self.unigrams
                     .get(token.normalized.as_ref())
-                    .map(|string| string.as_str())
-                    .unwrap_or(token.normalized.as_ref())
-                    .to_owned();
-                normalized_words_with_indexes.push((index, token.normalized));
+                    .map(|string| string.as_str());
+
+                if special_case_first_word {
+                    special_case_first_word = false;
+                    truecased = match from_unigrams {
+                        Some(s) => s.to_owned(),
+                        None => uppercase_first_letter(&token.normalized),
+                    };
+                } else {
+                    truecased = match from_unigrams {
+                        Some(s) => s.to_owned(),
+                        None => token.normalized.as_ref().to_owned(),
+                    };
+
+                    normalized_words_with_indexes.push((index, token.normalized));
+                }
             } else {
                 truecased = token.original.to_owned();
             }
@@ -287,14 +316,6 @@ impl CaseStats {
 type CaseMap = HashMap<String, String>;
 
 type Tokens<'a> = Filter<Tokenizer<'a>, fn(&Token) -> bool>;
-type SentenceTokens<'a> = Chain<Chain<Once<Token<'a>>, Tokens<'a>>, Once<Token<'a>>>;
-
-fn tokenize_sentence(sentence: &str) -> SentenceTokens {
-    let beginning = once(Token::new_padding());
-    let tokens = tokenize(sentence);
-    let end = once(Token::new_padding());
-    beginning.chain(tokens).chain(end)
-}
 
 fn tokenize(phrase: &str) -> Tokens {
     let tokens = Tokenizer {
@@ -342,7 +363,6 @@ impl<'a> Iterator for Tokenizer<'a> {
 enum TokenKind {
     Word,
     Separator,
-    Padding,
 }
 
 #[derive(Debug, Clone)]
@@ -367,15 +387,8 @@ impl<'a> Token<'a> {
         }
     }
 
-    fn new_padding() -> Self {
-        Self::new("", TokenKind::Padding)
-    }
-
     fn is_meaningful(&self) -> bool {
-        match self.kind {
-            TokenKind::Separator => false,
-            _ => true,
-        }
+        self.kind == TokenKind::Word
     }
 
     fn is_empty(&self) -> bool {
@@ -419,6 +432,14 @@ where
         string.push_str(item.as_ref());
     }
     string
+}
+
+fn uppercase_first_letter(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
 }
 
 fn is_sentence_sane(sentence: &str) -> bool {
