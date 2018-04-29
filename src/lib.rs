@@ -326,7 +326,7 @@ fn tokenize(phrase: &str) -> Tokens {
 }
 
 lazy_static! {
-    static ref WORD_SEPARATORS: Regex = Regex::new(r#"[,.?!:;()«»“”"—\s]+"#).unwrap();
+    static ref WORD_SEPARATORS: Regex = Regex::new(r#"[,.?!:;()«»„“”"—\s]+"#).unwrap();
 }
 
 struct Tokenizer<'a> {
