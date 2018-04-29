@@ -151,11 +151,39 @@ impl ModelTrainer {
     /// Build a model from all gathered statistics.
     pub fn into_model(self) -> Model {
         let mut unigrams = self.unigram_stats.into_most_common(1);
+        let mut bigrams = self.bigram_stats.into_most_common(10);
+        let mut trigrams = self.trigram_stats.into_most_common(10);
+
+        trigrams.retain(|k, v| {
+            let normalized_words = k.split(' ').collect::<Vec<_>>();
+            let truecased_words = v.split(' ').collect::<Vec<_>>();
+
+            let normalized_bigrams = normalized_words
+                .windows(2)
+                .map(|whatever| join_with_spaces(whatever.into_iter()));
+            let truecased_bigrams = truecased_words
+                .windows(2)
+                .map(|whatever| join_with_spaces(whatever.into_iter()));
+
+            normalized_bigrams
+                .zip(truecased_bigrams)
+                .any(|(k, v)| *bigrams.get(&k).unwrap() != v)
+        });
+
+        bigrams.retain(|k, v| {
+            let normalized_words = k.split(' ');
+            let truecased_words = v.split(' ');
+            normalized_words
+                .zip(truecased_words)
+                .any(|(k, v)| unigrams.get(k).unwrap() != v)
+        });
+
         unigrams.retain(|k, v| k != v);
+
         Model {
             unigrams,
-            bigrams: self.bigram_stats.into_most_common(10),
-            trigrams: self.trigram_stats.into_most_common(10),
+            bigrams,
+            trigrams,
         }
     }
 }
