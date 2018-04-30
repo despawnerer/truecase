@@ -68,6 +68,7 @@ extern crate serde_json;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -296,7 +297,7 @@ impl Model {
 
 #[derive(Debug, Default)]
 struct CaseStats {
-    stats: IndexMap<String, IndexMap<String, u32>>,
+    stats: IndexMap<String, BTreeMap<String, u32>>,
 }
 
 impl CaseStats {
@@ -323,7 +324,7 @@ impl CaseStats {
             return;
         }
 
-        let mut counts = IndexMap::with_capacity(1);
+        let mut counts = BTreeMap::new();
         counts.insert(original.to_owned(), 1);
 
         self.stats.insert(normalized.to_owned(), counts);
