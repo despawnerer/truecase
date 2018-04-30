@@ -57,6 +57,7 @@
 //! For truecasing using the CLI tool, see `truecase truecase --help`.
 
 extern crate failure;
+extern crate indexmap;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
@@ -74,6 +75,7 @@ use std::iter::Filter;
 
 use failure::Error;
 use regex::Regex;
+use indexmap::IndexMap;
 
 /// Trainer for new truecasing models.
 ///
@@ -294,7 +296,7 @@ impl Model {
 
 #[derive(Debug, Default)]
 struct CaseStats {
-    stats: HashMap<String, HashMap<String, u32>>,
+    stats: IndexMap<String, IndexMap<String, u32>>,
 }
 
 impl CaseStats {
@@ -321,7 +323,7 @@ impl CaseStats {
             return;
         }
 
-        let mut counts = HashMap::with_capacity(1);
+        let mut counts = IndexMap::with_capacity(1);
         counts.insert(original.to_owned(), 1);
 
         self.stats.insert(normalized.to_owned(), counts);
