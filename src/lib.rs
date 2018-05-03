@@ -73,6 +73,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::iter::Filter;
+use std::iter::once;
 
 use failure::Error;
 use regex::Regex;
@@ -153,9 +154,9 @@ impl ModelTrainer {
 
     /// Build a model from all gathered statistics.
     pub fn into_model(self) -> Model {
-        let mut unigrams = self.unigram_stats.into_most_common(1);
-        let mut bigrams = self.bigram_stats.into_most_common(10);
-        let mut trigrams = self.trigram_stats.into_most_common(10);
+        let mut unigrams = self.unigram_stats.into_most_frequent(1);
+        let mut bigrams = self.bigram_stats.into_most_frequent(10);
+        let mut trigrams = self.trigram_stats.into_most_frequent(10);
 
         trigrams.retain(|k, v| {
             let normalized_words = k.split(' ').collect::<Vec<_>>();
@@ -295,9 +296,57 @@ impl Model {
     }
 }
 
+enum CaseKind {
+    SameAsNormalized,
+    Other(String),
+}
+
+impl CaseKind {
+    fn to_string_from(self, normalized: &str) -> String {
+        match self {
+            CaseKind::SameAsNormalized => normalized.to_owned(),
+            CaseKind::Other(string) => string,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct CaseCounts {
+    same_as_normalized: u32,
+    other: BTreeMap<String, u32>,
+}
+
+impl CaseCounts {
+    fn add(&mut self, string: &str, normalized: &str) {
+        if string == normalized {
+            self.same_as_normalized += 1;
+        } else {
+            if let Some(other_count) = self.other.get_mut(string) {
+                *other_count += 1;
+                return;
+            }
+
+            self.other.insert(string.to_owned(), 1);
+        }
+    }
+
+    fn into_most_frequent_kind(self, min_frequency: u32) -> Option<CaseKind> {
+        let same_as_normalized = (CaseKind::SameAsNormalized, self.same_as_normalized);
+        let other_options = self.other
+            .into_iter()
+            .map(|(string, count)| (CaseKind::Other(string), count));
+
+        once(same_as_normalized)
+            .chain(other_options)
+            .filter(|&(_, frequency)| frequency >= min_frequency)
+            .max_by_key(|&(_, frequency)| frequency)
+            .map(|(option, _)| option)
+    }
+}
+
 #[derive(Debug, Default)]
 struct CaseStats {
-    stats: IndexMap<String, BTreeMap<String, u32>>,
+    stats: IndexMap<String, CaseCounts>,
 }
 
 impl CaseStats {
@@ -315,30 +364,24 @@ impl CaseStats {
         // currently it's impossible to add things to a hashmap ergonomically
         // using the .entry() API without needlessly cloning all of the source strings every time
         if let Some(counts) = self.stats.get_mut(normalized) {
-            if let Some(count) = counts.get_mut(original) {
-                *count += 1;
-                return;
-            }
-
-            counts.insert(original.to_owned(), 1);
+            counts.add(original, normalized);
             return;
         }
 
-        let mut counts = BTreeMap::new();
-        counts.insert(original.to_owned(), 1);
+        let mut counts = CaseCounts::default();
+        counts.add(original, normalized);
 
         self.stats.insert(normalized.to_owned(), counts);
     }
 
-    fn into_most_common(self, min_frequency: u32) -> CaseMap {
+    fn into_most_frequent(self, min_frequency: u32) -> CaseMap {
         self.stats
             .into_iter()
-            .flat_map(|(normalized, possible_cases)| {
-                possible_cases
-                    .into_iter()
-                    .filter(|&(_, frequency)| frequency >= min_frequency)
-                    .max_by_key(|&(_, frequency)| frequency)
-                    .map(|(most_common_case, _)| (normalized, most_common_case))
+            .flat_map(|(normalized, word_case_counts)| {
+                word_case_counts
+                    .into_most_frequent_kind(min_frequency)
+                    .map(|kind| kind.to_string_from(&normalized))
+                    .map(|truecased| (normalized, truecased))
             })
             .collect()
     }
