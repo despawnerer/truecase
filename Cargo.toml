@@ -10,7 +10,7 @@ readme = "README.md"
 
 [[bench]]
 harness = false
-name = "training"
+name = "all"
 
 [dependencies]
 clap = "2.31.2"
@@ -23,4 +23,4 @@ serde_json = "1.0.14"
 indexmap = "1.0.1"
 
 [dev-dependencies]
-bencher = "*"
+criterion = "0.2"
