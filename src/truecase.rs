@@ -5,9 +5,8 @@ use std::io::{Read, Write};
 use serde_json;
 use failure::Error;
 
-use tokenizer::{Token, tokenize};
+use tokenizer::{tokenize, Token};
 use utils::{join_with_spaces, uppercase_first_letter};
-
 
 pub(crate) type CaseMap = HashMap<String, String>;
 

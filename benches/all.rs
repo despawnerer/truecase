@@ -32,11 +32,13 @@ const TRAINING_SENTENCES: &str = r###"
 "###;
 
 fn training_benchmark(c: &mut Criterion) {
-    c.bench_function("training", |b| b.iter(|| {
-        let mut trainer = ModelTrainer::new();
-        trainer.add_sentences_from_iter(TRAINING_SENTENCES.split('\n'));
-        trainer.into_model()
-    }));
+    c.bench_function("training", |b| {
+        b.iter(|| {
+            let mut trainer = ModelTrainer::new();
+            trainer.add_sentences_from_iter(TRAINING_SENTENCES.split('\n'));
+            trainer.into_model()
+        })
+    });
 }
 
 fn truecasing_benchmark(c: &mut Criterion) {

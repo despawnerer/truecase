@@ -4,7 +4,6 @@ use regex::Regex;
 
 use utils::split_in_three;
 
-
 pub(crate) type Tokens<'a> = Filter<Tokenizer<'a>, fn(&Token) -> bool>;
 
 pub(crate) fn tokenize(phrase: &str) -> Tokens {

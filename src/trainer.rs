@@ -6,10 +6,9 @@ use std::iter::once;
 
 use indexmap::IndexMap;
 
-use tokenizer::{Token, tokenize};
-use truecase::{Model, CaseMap};
-use utils::{join_with_spaces};
-
+use tokenizer::{tokenize, Token};
+use truecase::{CaseMap, Model};
+use utils::join_with_spaces;
 
 /// Trainer for new truecasing models.
 ///
@@ -214,7 +213,6 @@ impl CaseStats {
             .collect()
     }
 }
-
 
 fn is_sentence_sane(sentence: &str) -> bool {
     !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)

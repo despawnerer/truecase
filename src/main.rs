@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use clap::{App, Arg, SubCommand};
-use failure::{ResultExt, Error};
+use failure::{Error, ResultExt};
 use truecase::{Model, ModelTrainer};
 
 fn main() {
@@ -74,7 +74,7 @@ fn main() {
 
         match do_train(input_filenames, output_filename) {
             Err(error) => print_error(error),
-            Ok(_) => {},
+            Ok(_) => {}
         }
     }
 
@@ -86,7 +86,7 @@ fn main() {
 
         match do_truecase(model_filename, input_filename, output_filename) {
             Err(error) => print_error(error),
-            Ok(_) => {},
+            Ok(_) => {}
         };
     }
 }
@@ -96,7 +96,9 @@ fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> R
 
     match training_filenames {
         Some(filenames) => for filename in filenames {
-            trainer.add_sentences_from_file(filename).context(format!("Couldn't load sentences from {}", filename))?;
+            trainer
+                .add_sentences_from_file(filename)
+                .context(format!("Couldn't load sentences from {}", filename))?;
         },
         None => {
             let stdin_reader = BufReader::new(stdin());
@@ -107,7 +109,9 @@ fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> R
     }
 
     let model = trainer.into_model();
-    model.save_to_file(model_filename).context(format!("Couldn't save model into {}", model_filename))?;
+    model
+        .save_to_file(model_filename)
+        .context(format!("Couldn't save model into {}", model_filename))?;
 
     Ok(())
 }
@@ -117,10 +121,13 @@ fn do_truecase(
     input_filename: Option<&str>,
     output_filename: Option<&str>,
 ) -> Result<(), Error> {
-    let model = Model::load_from_file(model_filename).context(format!("Couldn't load model from {}", model_filename))?;
+    let model = Model::load_from_file(model_filename)
+        .context(format!("Couldn't load model from {}", model_filename))?;
 
     let input: Box<BufRead> = match input_filename {
-        Some(filename) => Box::new(BufReader::new(File::open(filename).context(format!("Couldn't open input file {}", filename))?)),
+        Some(filename) => Box::new(
+            BufReader::new(File::open(filename).context(format!("Couldn't open input file {}", filename))?),
+        ),
         None => Box::new(BufReader::new(stdin())),
     };
 
