@@ -7,6 +7,7 @@ repository = "https://github.com/despawnerer/truecase"
 name = "truecase"
 version = "0.2.0"
 readme = "README.md"
+exclude = ["testing-data/*"]
 
 [[bench]]
 harness = false
