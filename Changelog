@@ -8,7 +8,7 @@
 - Truecasing sentence fragments (phrases) is now supported
 - First letters of sentences are experimentally assumed to be capitalized
 - CLI tool now properly reports errors instead of panicing
-- CLI tool accepts stding for input for training
+- CLI tool accepts stdin for input for training
 
 
 0.1.0 (13-01-2018)
