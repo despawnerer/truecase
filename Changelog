@@ -1,0 +1,17 @@
+0.2.0 (12-05-2018)
+------------------
+
+- Considerably faster training
+- Smaller models because data that doesn't affect the result is removed during training
+- Model saving and loading functions take AsRef<Path> for convenience
+- Quotes, dashes and parentheses are now considered word separators as well
+- Truecasing sentence fragments (phrases) is now supported
+- First letters of sentences are experimentally assumed to be capitalized
+- CLI tool now properly reports errors instead of panicing
+- CLI tool accepts stding for input for training
+
+
+0.1.0 (13-01-2018)
+------------------
+
+Initial release.
