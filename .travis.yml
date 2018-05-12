@@ -3,5 +3,3 @@ rust:
   - stable
   - beta
 cache: cargo
-script:
-  - cargo build --verbose
