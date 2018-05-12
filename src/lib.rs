@@ -10,7 +10,24 @@
 //! to truecase sentences with broken casings. It comes with a
 //! command-line utility that makes training a model easy.
 //!
-//! # Training a model using the CLI tool
+//! # Quick usage example
+//!
+//! ```
+//! use truecase::{Model, ModelTrainer};
+//!
+//! // build a statistical model from sample sentences
+//! let mut trainer = ModelTrainer::new();
+//! trainer.add_sentence("There are very few writers as good as Shakespeare");
+//! trainer.add_sentence("You and I will have to disagree about this");
+//! trainer.add_sentence("She never came back from USSR");
+//! let model = trainer.into_model();
+//!
+//! // use gathered statistics to restore case in caseless text
+//! let truecased_text = model.truecase("i don't think shakespeare was born in ussr");
+//! assert_eq!(truecased_text, "I don't think Shakespeare was born in USSR");
+//! ```
+//!
+//! # Building a model a model using the CLI tool
 //!
 //! 1. Create a file containing training sentences. Each sentence
 //!    must be on its own line and have proper casing. The bigger
@@ -27,34 +44,6 @@
 //!
 //!    Run `truecase train --help` for more details.
 //!
-//! # Training a model from Rust
-//!
-//! ```
-//! use truecase::ModelTrainer;
-//!
-//! let mut trainer = ModelTrainer::new();
-//! trainer.add_sentence("Here's a sample training sentence for truecasing");
-//! trainer.add_sentences_from_file("training_data.txt")?;
-//!
-//! let model = trainer.into_model();
-//! model.save_to_file("model.json")?;
-//! ```
-//!
-//! See also [`ModelTrainer`](struct.ModelTrainer.html).
-//!
-//! # Using a model to truecase text
-//!
-//! ```
-//! use truecase::Model;
-//!
-//! let model = Model::load_from_file("model.json")?;
-//! let truecased_text = model.truecase("i don't think shakespeare would approve of this sample text");
-//! assert_eq!(truecase_text, "I don't think Shakespeare would approve of this sample text");
-//! ```
-//!
-//! See also [`Model`](struct.Model.html).
-//!
-//! For truecasing using the CLI tool, see `truecase truecase --help`.
 
 extern crate failure;
 extern crate indexmap;
@@ -73,3 +62,4 @@ mod truecase;
 
 pub use trainer::ModelTrainer;
 pub use truecase::Model;
+pub use failure::Error;

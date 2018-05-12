@@ -11,15 +11,22 @@ _Truecasing_ is restoration of original letter cases in text: for example, turni
 
 This crate attempts to solve this problem by gathering statistics from a set of training sentences, then using those statistics to restore correct casings in broken sentences. It comes with a command-line utility that makes training the statistical model easy.
 
-Usage
------
+Quick usage example
+-------------------
 
 ```rust
-use truecase::Model;
+use truecase::{Model, ModelTrainer};
 
-let model = Model::load_from_file("my_pretrained_model.json")?;
-let truecased_text = model.truecase("i don't think shakespeare would approve of this sample text");
-assert_eq!(truecase_text, "I don't think Shakespeare would approve of this sample text");
+// build a statistical model from sample sentences
+let mut trainer = ModelTrainer::new();
+trainer.add_sentence("There are very few writers as good as Shakespeare");
+trainer.add_sentence("You and I will have to disagree about this");
+trainer.add_sentence("She never came back from USSR");
+let model = trainer.into_model();
+
+// use gathered statistics to restore case in caseless text
+let truecased_text = model.truecase("i don't think shakespeare was born in ussr");
+assert_eq!(truecased_text, "I don't think Shakespeare was born in USSR");
 ```
 
 See [documentation](https://docs.rs/truecase) for more details about training a model

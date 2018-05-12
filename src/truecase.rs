@@ -10,7 +10,7 @@ use utils::{join_with_spaces, uppercase_first_letter};
 
 pub(crate) type CaseMap = HashMap<String, String>;
 
-/// Truecasing model itself.
+/// Truecasing model.
 ///
 /// See [crate documentation](index.html) for examples.
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,12 +44,24 @@ impl Model {
         Ok(model)
     }
 
-    /// Restore word casings in a sentence
+    /// Restore word casings in a sentence.
+    ///
+    /// This will capitalize the first letter of the sentence if necessary.
+    ///
+    /// ```ignore
+    /// assert_eq!(model.truecase("sample shakespeare text"), "Sample Shakespeare text");
+    /// assert_eq!(model.truecase("iphones get sold quickly"), "iPhones get sold quickly");
+    /// ```
     pub fn truecase(&self, sentence: &str) -> String {
         self.truecase_tokens(tokenize(sentence), Mode::Sentence)
     }
 
-    /// Restore word casings in a phrase (sentence fragment)
+    /// Restore word casings in a phrase (sentence fragment).
+    ///
+    /// ```ignore
+    /// assert_eq!(model.truecase_phrase("sample shakespeare text"), "sample Shakespeare text");
+    /// assert_eq!(model.truecase_phrase("iphones get sold quickly"), "iPhones get sold quickly");
+    /// ```
     pub fn truecase_phrase(&self, phrase: &str) -> String {
         self.truecase_tokens(tokenize(phrase), Mode::Phrase)
     }
