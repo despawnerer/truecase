@@ -1,5 +1,6 @@
 use std::io;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::iter::once;
@@ -30,8 +31,8 @@ impl ModelTrainer {
     /// Add sentences to the training set from a file.
     ///
     /// The file is assumed to have one sentence per line.
-    pub fn add_sentences_from_file(&mut self, filename: &str) -> io::Result<&mut Self> {
-        let file = File::open(filename)?;
+    pub fn add_sentences_from_file<P: AsRef<Path>>(&mut self, path: P) -> io::Result<&mut Self> {
+        let file = File::open(path)?;
         let reader = BufReader::new(file);
         for line in reader.lines() {
             self.add_sentence(&line?);

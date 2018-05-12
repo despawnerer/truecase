@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::collections::HashMap;
+use std::path::Path;
 use std::io::{Read, Write};
 
 use serde_json;
@@ -28,17 +29,17 @@ enum Mode {
 impl Model {
     /// Save this model into a file with the given filename.
     /// The format is simple JSON right now.
-    pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let serialized = serde_json::to_string(&self)?;
-        File::create(filename)?.write_all(serialized.as_bytes())?;
+        File::create(path)?.write_all(serialized.as_bytes())?;
 
         Ok(())
     }
 
     /// Load a previously saved model from a file
-    pub fn load_from_file(filename: &str) -> Result<Self, Error> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let mut string = String::new();
-        File::open(filename)?.read_to_string(&mut string)?;
+        File::open(path)?.read_to_string(&mut string)?;
         let model = serde_json::from_str(&string)?;
 
         Ok(model)
