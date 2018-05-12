@@ -1,6 +1,7 @@
 truecase.rs
 ===========
 
+[![Build Status](https://travis-ci.org/despawnerer/truecase.svg?branch=master)](https://travis-ci.org/despawnerer/truecase)
 [![Latest Version](https://img.shields.io/crates/v/truecase.svg)](https://crates.io/crates/truecase)
 [![docs](https://docs.rs/truecase/badge.svg)](https://docs.rs/truecase)
 
