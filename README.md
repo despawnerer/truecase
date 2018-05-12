@@ -29,7 +29,7 @@ let truecased_text = model.truecase("i don't think shakespeare was born in ussr"
 assert_eq!(truecased_text, "I don't think Shakespeare was born in USSR");
 ```
 
-See [documentation](https://docs.rs/truecase) for more details about training a model
+See [documentation](https://docs.rs/truecase) for more details.
 
 License
 -------
