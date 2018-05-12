@@ -68,8 +68,8 @@ extern crate serde_json;
 
 mod tokenizer;
 mod utils;
-pub mod trainer;
-pub mod truecase;
+mod trainer;
+mod truecase;
 
 pub use trainer::ModelTrainer;
 pub use truecase::Model;

@@ -123,54 +123,6 @@ impl ModelTrainer {
     }
 }
 
-enum CaseKind {
-    Normalized,
-    Other(String),
-}
-
-impl CaseKind {
-    fn to_string_from(self, normalized: &str) -> String {
-        match self {
-            CaseKind::Normalized => normalized.to_owned(),
-            CaseKind::Other(string) => string,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-struct CaseCounts {
-    normalized: u32,
-    other: BTreeMap<String, u32>,
-}
-
-impl CaseCounts {
-    fn add(&mut self, string: &str, normalized: &str) {
-        if string == normalized {
-            self.normalized += 1;
-        } else {
-            if let Some(other_count) = self.other.get_mut(string) {
-                *other_count += 1;
-                return;
-            }
-
-            self.other.insert(string.to_owned(), 1);
-        }
-    }
-
-    fn into_most_frequent_kind(self, min_frequency: u32) -> Option<CaseKind> {
-        let normalized = (CaseKind::Normalized, self.normalized);
-        let other_options = self.other
-            .into_iter()
-            .map(|(string, count)| (CaseKind::Other(string), count));
-
-        once(normalized)
-            .chain(other_options)
-            .filter(|&(_, frequency)| frequency >= min_frequency)
-            .max_by_key(|&(_, frequency)| frequency)
-            .map(|(option, _)| option)
-    }
-}
-
 #[derive(Debug, Default)]
 struct CaseStats {
     stats: IndexMap<String, CaseCounts>,
@@ -211,6 +163,54 @@ impl CaseStats {
                     .map(|truecased| (normalized, truecased))
             })
             .collect()
+    }
+}
+
+#[derive(Debug, Default)]
+struct CaseCounts {
+    normalized: u32,
+    other: BTreeMap<String, u32>,
+}
+
+impl CaseCounts {
+    fn add(&mut self, string: &str, normalized: &str) {
+        if string == normalized {
+            self.normalized += 1;
+        } else {
+            if let Some(other_count) = self.other.get_mut(string) {
+                *other_count += 1;
+                return;
+            }
+
+            self.other.insert(string.to_owned(), 1);
+        }
+    }
+
+    fn into_most_frequent_kind(self, min_frequency: u32) -> Option<CaseKind> {
+        let normalized = (CaseKind::Normalized, self.normalized);
+        let other_options = self.other
+            .into_iter()
+            .map(|(string, count)| (CaseKind::Other(string), count));
+
+        once(normalized)
+            .chain(other_options)
+            .filter(|&(_, frequency)| frequency >= min_frequency)
+            .max_by_key(|&(_, frequency)| frequency)
+            .map(|(option, _)| option)
+    }
+}
+
+enum CaseKind {
+    Normalized,
+    Other(String),
+}
+
+impl CaseKind {
+    fn to_string_from(self, normalized: &str) -> String {
+        match self {
+            CaseKind::Normalized => normalized.to_owned(),
+            CaseKind::Other(string) => string,
+        }
     }
 }
 
