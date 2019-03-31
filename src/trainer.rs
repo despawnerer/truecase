@@ -160,7 +160,7 @@ impl CaseStats {
             .flat_map(|(normalized, word_case_counts)| {
                 word_case_counts
                     .into_most_frequent_kind(min_frequency)
-                    .map(|kind| kind.to_string_from(&normalized))
+                    .map(|kind| kind.into_to_string_from(&normalized))
                     .map(|truecased| (normalized, truecased))
             })
             .collect()
@@ -207,7 +207,7 @@ enum CaseKind {
 }
 
 impl CaseKind {
-    fn to_string_from(self, normalized: &str) -> String {
+    fn into_to_string_from(self, normalized: &str) -> String {
         match self {
             CaseKind::Normalized => normalized.to_owned(),
             CaseKind::Other(string) => string,
