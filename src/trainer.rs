@@ -96,10 +96,10 @@ impl ModelTrainer {
 
             let normalized_bigrams = normalized_words
                 .windows(2)
-                .map(|whatever| join_with_spaces(whatever.into_iter()));
+                .map(|whatever| join_with_spaces(whatever.iter()));
             let truecased_bigrams = truecased_words
                 .windows(2)
-                .map(|whatever| join_with_spaces(whatever.into_iter()));
+                .map(|whatever| join_with_spaces(whatever.iter()));
 
             normalized_bigrams
                 .zip(truecased_bigrams)
