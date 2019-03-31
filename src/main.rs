@@ -72,9 +72,8 @@ fn main() {
         let output_filename = matches.value_of("output").unwrap();
         let input_filenames = matches.values_of("input");
 
-        match do_train(input_filenames, output_filename) {
-            Err(error) => print_error(error),
-            Ok(_) => {}
+        if let Err(error) = do_train(input_filenames, output_filename) {
+            print_error(error);
         }
     }
 
@@ -84,9 +83,8 @@ fn main() {
         let input_filename = matches.value_of("input");
         let output_filename = matches.value_of("output");
 
-        match do_truecase(model_filename, input_filename, output_filename) {
-            Err(error) => print_error(error),
-            Ok(_) => {}
+        if let Err(error) = do_truecase(model_filename, input_filename, output_filename) {
+            print_error(error);
         };
     }
 }
