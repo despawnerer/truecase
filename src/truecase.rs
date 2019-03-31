@@ -21,6 +21,7 @@ pub struct Model {
     pub(crate) trigrams: CaseMap,
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Mode {
     Sentence,
     Phrase,
