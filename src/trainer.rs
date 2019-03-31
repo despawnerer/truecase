@@ -217,5 +217,5 @@ impl CaseKind {
 
 fn is_sentence_sane(sentence: &str) -> bool {
     !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
-        && sentence.trim().len() > 0
+        && !sentence.trim().is_empty()
 }
