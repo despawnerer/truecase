@@ -103,7 +103,7 @@ impl ModelTrainer {
 
             normalized_bigrams
                 .zip(truecased_bigrams)
-                .any(|(k, v)| *bigrams.get(&k).unwrap() != v)
+                .any(|(k, v)| bigrams[&k] != v)
         });
 
         bigrams.retain(|k, v| {
@@ -111,7 +111,7 @@ impl ModelTrainer {
             let truecased_words = v.split(' ');
             normalized_words
                 .zip(truecased_words)
-                .any(|(k, v)| unigrams.get(k).unwrap() != v)
+                .any(|(k, v)| unigrams[k] != v)
         });
 
         unigrams.retain(|k, v| k != v);
