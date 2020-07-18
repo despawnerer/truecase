@@ -122,14 +122,14 @@ fn do_truecase(
     let model = Model::load_from_file(model_filename)
         .context(format!("Couldn't load model from {}", model_filename))?;
 
-    let input: Box<BufRead> = match input_filename {
+    let input: Box<dyn BufRead> = match input_filename {
         Some(filename) => Box::new(
             BufReader::new(File::open(filename).context(format!("Couldn't open input file {}", filename))?),
         ),
         None => Box::new(BufReader::new(stdin())),
     };
 
-    let mut output: Box<Write> = match output_filename {
+    let mut output: Box<dyn Write> = match output_filename {
         Some(filename) => Box::new(File::create(filename).context(format!("Couldn't create output file {}", filename))?),
         None => Box::new(stdout()),
     };
@@ -144,7 +144,7 @@ fn do_truecase(
 }
 
 fn print_error(error: Error) {
-    for failure in error.causes() {
+    for failure in error.iter_chain() {
         eprintln!("{}", failure);
     }
 }
