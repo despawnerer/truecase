@@ -1,5 +1,4 @@
-use std::io;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -7,9 +6,9 @@ use std::iter::once;
 
 use indexmap::IndexMap;
 
-use tokenizer::{tokenize, Token};
-use truecase::{CaseMap, Model};
-use utils::join_with_spaces;
+use crate::tokenizer::{tokenize, Token};
+use crate::truecase::{CaseMap, Model};
+use crate::utils::join_with_spaces;
 
 /// Trainer for new truecasing models.
 ///

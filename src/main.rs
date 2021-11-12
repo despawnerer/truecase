@@ -1,8 +1,3 @@
-extern crate clap;
-extern crate failure;
-
-extern crate truecase;
-
 use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 

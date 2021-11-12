@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 use std::iter::Filter;
-use regex::Regex;
 
-use utils::split_in_three;
+use regex::Regex;
+use lazy_static::lazy_static;
+
+use crate::utils::split_in_three;
 
 pub(crate) type Tokens<'a> = Filter<Tokenizer<'a>, fn(&Token) -> bool>;
 

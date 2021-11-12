@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::io::{Read, Write};
 
-use serde_json;
 use failure::Error;
+use serde::{Serialize, Deserialize};
 
-use tokenizer::{tokenize, Token};
-use utils::{join_with_spaces, uppercase_first_letter};
+use crate::tokenizer::{tokenize, Token};
+use crate::utils::{join_with_spaces, uppercase_first_letter};
 
 pub(crate) type CaseMap = HashMap<String, String>;
 
