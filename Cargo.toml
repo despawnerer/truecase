@@ -15,14 +15,22 @@ harness = false
 name = "all"
 
 [dependencies]
-clap = "2.33"
+clap = { version = "2.33", optional = true }
 lazy_static = "1.4"
 regex = "1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 indexmap = "1.7"
 thiserror = "1.0"
-anyhow = "1.0"
+anyhow = { version = "1.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
+
+[features]
+default = []
+cli = ["clap", "anyhow"]
+
+[[bin]]
+name = "truecase"
+required-features = ["cli"]
