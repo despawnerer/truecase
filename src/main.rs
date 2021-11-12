@@ -1,9 +1,9 @@
 use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
+use anyhow::{Context, Result};
 use clap::{App, Arg, SubCommand};
 use truecase::{Model, ModelTrainer};
-use anyhow::{Context, Result};
 
 fn main() -> Result<()> {
     let matches = App::new("truecase.rs")
