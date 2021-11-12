@@ -51,6 +51,6 @@ mod trainer;
 mod truecase;
 mod utils;
 
-pub use errors::{ModelLoadingError, ModelSavingError};
-pub use trainer::ModelTrainer;
-pub use truecase::Model;
+pub use crate::errors::{ModelLoadingError, ModelSavingError};
+pub use crate::trainer::ModelTrainer;
+pub use crate::truecase::Model;
