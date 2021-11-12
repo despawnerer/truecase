@@ -2,10 +2,10 @@ use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use clap::{App, Arg, SubCommand};
-use failure::{Error, ResultExt};
 use truecase::{Model, ModelTrainer};
+use anyhow::{Context, Result};
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("truecase.rs")
         .version("0.1")
         .author("Aleksei Voronov <despawn@gmail.com>")
@@ -67,9 +67,7 @@ fn main() {
         let output_filename = matches.value_of("output").unwrap();
         let input_filenames = matches.values_of("input");
 
-        if let Err(error) = do_train(input_filenames, output_filename) {
-            print_error(error);
-        }
+        do_train(input_filenames, output_filename)?;
     }
 
     if let Some(matches) = matches.subcommand_matches("truecase") {
@@ -78,13 +76,13 @@ fn main() {
         let input_filename = matches.value_of("input");
         let output_filename = matches.value_of("output");
 
-        if let Err(error) = do_truecase(model_filename, input_filename, output_filename) {
-            print_error(error);
-        };
+        do_truecase(model_filename, input_filename, output_filename)?;
     }
+
+    Ok(())
 }
 
-fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> Result<(), Error> {
+fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> Result<()> {
     let mut trainer = ModelTrainer::new();
 
     match training_filenames {
@@ -115,7 +113,7 @@ fn do_truecase(
     model_filename: &str,
     input_filename: Option<&str>,
     output_filename: Option<&str>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let model = Model::load_from_file(model_filename)
         .context(format!("Couldn't load model from {}", model_filename))?;
 
@@ -140,10 +138,4 @@ fn do_truecase(
     }
 
     Ok(())
-}
-
-fn print_error(error: Error) {
-    for failure in error.iter_chain() {
-        eprintln!("{}", failure);
-    }
 }

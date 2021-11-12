@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 
-use failure::Error;
 use serde::{Deserialize, Serialize};
 
+use crate::errors::{ModelLoadingError, ModelSavingError};
 use crate::tokenizer::{tokenize, Token};
 use crate::utils::{join_with_spaces, uppercase_first_letter};
 
@@ -30,7 +30,7 @@ enum Mode {
 impl Model {
     /// Save this model into a file with the given filename.
     /// The format is simple JSON right now.
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), ModelSavingError> {
         let serialized = serde_json::to_string(&self)?;
         File::create(path)?.write_all(serialized.as_bytes())?;
 
@@ -38,7 +38,7 @@ impl Model {
     }
 
     /// Load a previously saved model from a file
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self, ModelLoadingError> {
         let mut string = String::new();
         File::open(path)?.read_to_string(&mut string)?;
         let model = serde_json::from_str(&string)?;

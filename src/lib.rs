@@ -45,11 +45,12 @@
 //!    Run `truecase train --help` for more details.
 //!
 
+mod errors;
 mod tokenizer;
 mod trainer;
 mod truecase;
 mod utils;
 
-pub use failure::Error;
+pub use errors::{ModelLoadingError, ModelSavingError};
 pub use trainer::ModelTrainer;
 pub use truecase::Model;
