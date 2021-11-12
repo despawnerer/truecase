@@ -7,7 +7,7 @@ use truecase::{Model, ModelTrainer};
 
 fn main() -> Result<()> {
     let matches = App::new("truecase.rs")
-        .version("0.1")
+        .version("0.3")
         .author("Aleksei Voronov <despawn@gmail.com>")
         .about("Train a truecasing model, or use one to truecase a sentence.")
         .subcommand(
