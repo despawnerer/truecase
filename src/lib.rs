@@ -46,10 +46,10 @@
 //!
 
 mod tokenizer;
-mod utils;
 mod trainer;
 mod truecase;
+mod utils;
 
+pub use failure::Error;
 pub use trainer::ModelTrainer;
 pub use truecase::Model;
-pub use failure::Error;

@@ -88,11 +88,13 @@ fn do_train(training_filenames: Option<clap::Values>, model_filename: &str) -> R
     let mut trainer = ModelTrainer::new();
 
     match training_filenames {
-        Some(filenames) => for filename in filenames {
-            trainer
-                .add_sentences_from_file(filename)
-                .context(format!("Couldn't load sentences from {}", filename))?;
-        },
+        Some(filenames) => {
+            for filename in filenames {
+                trainer
+                    .add_sentences_from_file(filename)
+                    .context(format!("Couldn't load sentences from {}", filename))?;
+            }
+        }
         None => {
             let stdin_reader = BufReader::new(stdin());
             for sentence in stdin_reader.lines() {
@@ -118,14 +120,16 @@ fn do_truecase(
         .context(format!("Couldn't load model from {}", model_filename))?;
 
     let input: Box<dyn BufRead> = match input_filename {
-        Some(filename) => Box::new(
-            BufReader::new(File::open(filename).context(format!("Couldn't open input file {}", filename))?),
-        ),
+        Some(filename) => Box::new(BufReader::new(
+            File::open(filename).context(format!("Couldn't open input file {}", filename))?,
+        )),
         None => Box::new(BufReader::new(stdin())),
     };
 
     let mut output: Box<dyn Write> = match output_filename {
-        Some(filename) => Box::new(File::create(filename).context(format!("Couldn't create output file {}", filename))?),
+        Some(filename) => Box::new(
+            File::create(filename).context(format!("Couldn't create output file {}", filename))?,
+        ),
         None => Box::new(stdout()),
     };
 

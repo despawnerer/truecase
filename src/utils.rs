@@ -17,9 +17,11 @@ where
     I: Iterator + Clone,
     I::Item: AsRef<str>,
 {
-    let length: usize = iter.clone()
+    let length: usize = iter
+        .clone()
         .map(|item| item.as_ref().len() + 1)
-        .sum::<usize>() - 1;
+        .sum::<usize>()
+        - 1;
     let mut string = String::with_capacity(length);
 
     match iter.next() {

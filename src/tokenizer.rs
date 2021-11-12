@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::iter::Filter;
 
-use regex::Regex;
 use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::utils::split_in_three;
 

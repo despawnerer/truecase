@@ -1,10 +1,10 @@
-use std::fs::File;
 use std::collections::HashMap;
-use std::path::Path;
+use std::fs::File;
 use std::io::{Read, Write};
+use std::path::Path;
 
 use failure::Error;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::tokenizer::{tokenize, Token};
 use crate::utils::{join_with_spaces, uppercase_first_letter};
@@ -84,7 +84,8 @@ impl Model {
             let truecased;
 
             if token.is_meaningful() {
-                let from_unigrams = self.unigrams
+                let from_unigrams = self
+                    .unigrams
                     .get(token.normalized.as_ref())
                     .map(|string| string.as_str());
 

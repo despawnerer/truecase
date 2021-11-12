@@ -1,8 +1,8 @@
-use std::io::{self, BufRead, BufReader};
-use std::path::Path;
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use std::iter::once;
+use std::path::Path;
 
 use indexmap::IndexMap;
 
@@ -188,7 +188,8 @@ impl CaseCounts {
 
     fn into_most_frequent_kind(self, min_frequency: u32) -> Option<CaseKind> {
         let normalized = (CaseKind::Normalized, self.normalized);
-        let other_options = self.other
+        let other_options = self
+            .other
             .into_iter()
             .map(|(string, count)| (CaseKind::Other(string), count));
 
@@ -215,6 +216,7 @@ impl CaseKind {
 }
 
 fn is_sentence_sane(sentence: &str) -> bool {
-    !sentence.chars().all(char::is_uppercase) && !sentence.chars().all(char::is_lowercase)
+    !sentence.chars().all(char::is_uppercase)
+        && !sentence.chars().all(char::is_lowercase)
         && !sentence.trim().is_empty()
 }
