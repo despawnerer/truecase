@@ -28,22 +28,33 @@ enum Mode {
 }
 
 impl Model {
-    /// Save this model into a file with the given filename.
-    /// The format is simple JSON right now.
-    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), ModelSavingError> {
-        let serialized = serde_json::to_string(&self)?;
-        File::create(path)?.write_all(serialized.as_bytes())?;
+    /// Load a previously serialized model from a byte slice
+    ///
+    /// Use this method if you want to bundle the model into your binary instead
+    /// of supplying it as a separate resource.
+    pub fn deserialize(bytes: &[u8]) -> Result<Self, ModelLoadingError> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
 
-        Ok(())
+    /// Serialize the model into a vector of bytes
+    pub fn serialize(&self) -> Result<Vec<u8>, ModelSavingError> {
+        Ok(serde_json::to_vec(self)?)
     }
 
     /// Load a previously saved model from a file
     pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self, ModelLoadingError> {
-        let mut string = String::new();
-        File::open(path)?.read_to_string(&mut string)?;
-        let model = serde_json::from_str(&string)?;
+        let mut vec = Vec::new();
+        File::open(path)?.read(&mut vec)?;
+        Model::deserialize(&vec)
+    }
 
-        Ok(model)
+    /// Save this model into a file with the given filename.
+    /// The format is simple JSON right now.
+    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), ModelSavingError> {
+        let serialized = Model::serialize(&self)?;
+        File::create(path)?.write_all(&serialized)?;
+
+        Ok(())
     }
 
     /// Restore word casings in a sentence.

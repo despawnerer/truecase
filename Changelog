@@ -1,6 +1,7 @@
 0.3.0 (unreleased)
 ------------------
 
+- New methods on `Model` to allow deserializing directly from a byte slice
 - Modernized dependencies, replacing `failure` with `anyhow` in the binary and `thiserror` in the library
 - 2018 edition is required
 - Assorted code quality improvements, as per clippy suggestions
