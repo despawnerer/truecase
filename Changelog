@@ -1,5 +1,7 @@
-0.3.0 (unreleased)
+0.3.0 (17.11.2021)
 ------------------
+
+A small maintenance release.
 
 - New methods on `Model` to allow deserializing directly from a byte slice
 - Modernized dependencies, replacing `failure` with `anyhow` in the binary and `thiserror` in the library
