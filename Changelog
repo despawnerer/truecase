@@ -1,3 +1,11 @@
+0.3.1 (29.09.2023)
+------------------
+
+Maintenance release, thanks @jwnz
+
+- Fix description on the `truecase` command in the CLI too to match what it actually does
+- Fix loading pretrained models from files
+
 0.3.0 (17.11.2021)
 ------------------
 
