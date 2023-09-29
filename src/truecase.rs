@@ -44,7 +44,7 @@ impl Model {
     /// Load a previously saved model from a file
     pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self, ModelLoadingError> {
         let mut vec = Vec::new();
-        File::open(path)?.read(&mut vec)?;
+        File::open(path)?.read_to_end(&mut vec)?;
         Model::deserialize(&vec)
     }
 

@@ -33,7 +33,7 @@ fn main() -> Result<()> {
                 ),
         )
         .subcommand(SubCommand::with_name("truecase")
-                .about("Create a truecasing model based on training data")
+                .about("Perform truecasing on a file containing sentences that need to be truecased")
                 .arg(
                     Arg::with_name("model")
                         .short("m")
